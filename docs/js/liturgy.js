@@ -52,14 +52,43 @@
   const inRange = (m, from, to) => m >= from && m <= to;
   const RANKS = ["", ".", ".)", "†", "†)", "(†)"];
 
-  // What the rubrics ask about one civil date.
+  // Days named by Pascha rather than by the date. The great feasts among them
+  // outrank the saint of the date, on either calendar.
+  const MOVABLE_FEASTS = {
+    "-7": "Intrarea Domnului în Ierusalim (Duminica Floriilor)", 0: "Învierea Domnului (Sfintele Paști)",
+    1: "A doua zi de Paști", 2: "A treia zi de Paști", 39: "Înălțarea Domnului",
+    49: "Pogorârea Sfântului Duh (Cincizecimea)", 50: "Sfânta Treime",
+  };
+  const HOLY_WEEK = { "-6": "Sfânta și Marea Luni", "-5": "Sfânta și Marea Marți", "-4": "Sfânta și Marea Miercuri",
+    "-3": "Sfânta și Marea Joi", "-2": "Sfânta și Marea Vineri", "-1": "Sfânta și Marea Sâmbătă" };
+
+  // The Sunday's name survives the change of calendar only as far as it hangs on
+  // Pascha: the parts that follow fixed feasts or the Lukan jump are dropped.
+  function oldStyleSunday(name) {
+    if (!name) return undefined;
+    if (/după Paști|din Post|Lăsatului|Zaheu|Vameș|Fiului Risipitor|Tuturor Sfinților/.test(name)) return name;
+    return /după Rusalii/.test(name) ? name.replace(/\s*\(.*$/, "") : undefined;
+  }
+
+  // A day's entry where the source's calendar cannot give it: on the old calendar,
+  // whose saints fall 13 days later, and in years beyond the source's calendar.
+  function computedDay(d, day, civil, old) {
+    const great = MOVABLE_FEASTS[d];
+    const title = great ?? [HOLY_WEEK[d], day?.title].filter(Boolean).join("; ");
+    return { title, rank: great ? "(†)" : day?.rank ?? "", sunday: old ? oldStyleSunday(civil?.sunday) : civil?.sunday };
+  }
+
+  // What the rubrics ask about one civil date. With `data.style` "vechi" the saints
+  // and fixed feasts are those of the date 13 days earlier; Pascha does not move.
   function dayContext(iso, data) {
     const { offset: d, pascha: p } = paschaOffset(iso);
     const dow = new Date(toUTC(iso)).getUTCDay();
-    const m = mmdd(iso);
-    const cal = data?.calendar?.[m];
+    const old = data?.style === "vechi";
+    const m = mmdd(old ? addDays(iso, -13) : iso);
+    const civil = data?.calendar?.[mmdd(iso)];
     const sin = data?.sinaxar?.[m];
-    const rank = cal ? cal.rank : (sin ? sin.rank : "");
+    const cal = civil && !old ? civil : computedDay(d, data?.fixed?.[m] ?? sin, civil, old);
+    const rank = cal.rank;
     const rankN = RANKS.indexOf(rank);
 
     const lentPeriod = d >= -48 && d <= -1;
@@ -80,7 +109,8 @@
     const triod = d >= -70 && d <= -1;
 
     return {
-      date: iso, m, dow, pascha: p, d, rank, cal, sin,
+      date: iso, m, dow, pascha: p, d, rank, cal, sin, style: old ? "vechi" : "nou",
+      movableFeast: d in MOVABLE_FEASTS,
       sun: dow === 0, mon: dow === 1, tue: dow === 2, wed: dow === 3, thu: dow === 4, fri: dow === 5, sat: dow === 6,
       L, HW, A, Lw: L || HW || A, post: L || A,
       lentPeriod, firstLentWeek: d >= -48 && d <= -44,
@@ -101,7 +131,7 @@
   function serviceContext(iso, slug, data) {
     const c = dayContext(iso, data);
     const evening = EVENING.has(slug);
-    const lit = evening ? dayContext(addDays(iso, 1), data.next ? { calendar: data.next, sinaxar: data.sinaxar } : data) : c;
+    const lit = evening ? dayContext(addDays(iso, 1), data.next ? { ...data, calendar: data.next } : data) : c;
     return { ...c, lit, eve: c.dow, evening };
   }
 
@@ -149,7 +179,8 @@
     const out = [];
     const saints = saintTropare(lit);
     const entry = moveableEntry(lit, hymns);
-    if (lit.feast && saints.length) return saints.slice(0, 1).map((s) => ({ label: s.l, text: s.x, glas: s.g }));
+    if (lit.movableFeast && entry?.t.length) return entry.t.map((t) => ({ label: t.l, text: t.x, glas: t.g }));
+    if (lit.feast && !lit.movableFeast && saints.length) return saints.slice(0, 1).map((s) => ({ label: s.l, text: s.x, glas: s.g }));
     // A Pentecostarion feast keeps its troparion through its week of after-feast
     // (Mid-Pentecost, for instance, until its leave-taking seven days on).
     const festal = lit.pent && !entry?.t.length && !lit.sun
@@ -172,7 +203,8 @@
   function condac(lit, hour, hymns) {
     const entry = moveableEntry(lit, hymns);
     const saints = saintCondace(lit);
-    if (lit.feast && saints.length) return [hymnOf(saints[0])];
+    if (lit.movableFeast && entry?.c.length) return entry.c.map(hymnOf);
+    if (lit.feast && !lit.movableFeast && saints.length) return [hymnOf(saints[0])];
     if (lit.pent && entry?.c.length) return entry.c.map(hymnOf);
     if (lit.triod && entry?.c.length && (lit.sun || lit.sat || lit.HW || !lit.lentPeriod)) return entry.c.map(hymnOf);
     if (lit.sun) {
@@ -235,7 +267,7 @@
     if (dow === 0) {
       if (at !== "u") return [];
       if (c.lentPeriod) return d === -7 ? [2, 3, "polieleu"] : [2, 3, 17];
-      const full = inRange(m, "09-22", "12-20") || m >= "01-15" && d < -63 || m < "01-15" && false;
+      const full = inRange(m, "09-22", "12-20") || m >= "01-15" && m < "09-22" && d < -63;
       const third = c.feast || c.polieleu || full || d === -63 || d === -56 || d === 7 ? "polieleu" : 17;
       return [2, 3, third];
     }

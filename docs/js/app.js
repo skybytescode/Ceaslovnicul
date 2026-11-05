@@ -34,6 +34,16 @@
 
   // ── Data ─────────────────────────────────────────────────────────────────
   const cache = new Map();
+  // The calendar: chosen on calendar.html, remembered on this device.
+  const STYLE = (() => {
+    const asked = new URLSearchParams(location.search).get("stil");
+    try {
+      if (asked === "vechi" || asked === "nou") localStorage.setItem("ceaslovnicul-stil", asked);
+      return asked || localStorage.getItem("ceaslovnicul-stil") || "nou";
+    } catch {
+      return asked || "nou";
+    }
+  })();
   function fetchData(name) {
     if (!cache.has(name)) {
       cache.set(name, fetch(`data/${name}.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null));
@@ -45,7 +55,8 @@
     const [sinaxar, hymns, services] = await Promise.all([fetchData("sinaxar"), fetchData("hymns"), fetchData("services")]);
     const next = L.addDays(iso, 1);
     const [calendar, nextCalendar] = await Promise.all([fetchData(`cal-${iso.slice(0, 4)}`), fetchData(`cal-${next.slice(0, 4)}`)]);
-    return { sinaxar, hymns, services, calendar, next: nextCalendar };
+    const fixed = await fetchData("fixed-calendar");
+    return { sinaxar, hymns, services, calendar, next: nextCalendar, style: STYLE, fixed };
   }
 
   // ── Clock ────────────────────────────────────────────────────────────────
@@ -123,6 +134,11 @@
     const a = item.a || {};
     switch (item.slot) {
       case "tropar": {
+        // From Pascha to Bright Saturday: "Hristos a înviat", in the source's own words.
+        if (c.bright && lit.bright) {
+          hymn(box, "Troparul Paștilor :", c.data.services.pasti[0].r.map((r) => r[0]).join("").trim());
+          break;
+        }
         const list = L.tropare(lit, hymns);
         const eveningOf = c.evening ? c.eve : (new Date(`${c.date}T00:00Z`).getUTCDay() + 6) % 7;
         const lastGlas = list[list.length - 1]?.glas || lit.glas;
@@ -245,17 +261,34 @@
     return `${WEEKDAYS[dow]}, ${d} ${MONTHS[m - 1]} ${y}`;
   }
 
+  // Every cross opens the page where the calendar is chosen.
+  function crossLink(cls) {
+    const a = el("a", cls);
+    a.href = "calendar.html";
+    a.setAttribute("aria-label", "Alege calendarul: stil nou sau stil vechi");
+    a.title = "Alege calendarul";
+    return a;
+  }
+
   function dayHeader(parent, iso, c, title, time) {
     const lit = c.lit;
     const head = el("div", "day");
     const facts = [formatDate(iso)];
+    if (c.style === "vechi") {
+      const [, m, d] = L.addDays(iso, -13).split("-").map(Number);
+      facts.push(`stil vechi: ${d} ${MONTHS[m - 1]}`);
+    }
     if (c.fastName) facts.push(c.fastName);
     else if (c.periodName !== "Octoih") facts.push(c.periodName);
     if (!c.bright) facts.push(`glasul ${lit.glas}`);
     head.append(el("div", "", facts.join(" · ")));
     const saint = lit.cal?.title || lit.sin?.title || "";
     if (lit.cal?.sunday) head.append(el("div", "day__saint", lit.cal.sunday));
-    if (saint) head.append(el("div", "day__saint", `${lit.rank ? lit.rank + " " : ""}${saint}`));
+    if (saint) {
+      // The crosses are the calendar's signs; the Sinaxar's dots are only for the rules.
+      const sign = lit.rank.includes("†") ? `${lit.rank} ` : "";
+      head.append(el("div", "day__saint", `${sign}${saint}`));
+    }
     if (c.evening) head.append(el("div", "day__rubric", "Seara: troparele și condacele sunt ale zilei de mâine."));
     if (lit.cal?.note) head.append(el("div", "day__rubric", lit.cal.note));
     parent.append(head);
@@ -265,7 +298,7 @@
       parent.append(eyebrow);
     }
     parent.append(el("h1", "page__title", title));
-    parent.append(el("hr", "page__rule"));
+    parent.append(crossLink("page__rule"));
   }
 
   const state = { iso: null, slug: null, manual: false, full: false, shown: null };
@@ -341,7 +374,7 @@
     }
     page.append(body);
     page.append(serviceNav(iso, slug, base, data, "bottom"));
-    page.append(Object.assign(el("div", "page__footer-mark"), { role: "presentation" }));
+    page.append(crossLink("page__footer-mark"));
     document.title = `Ceaslovnicul · ${titleOf(slug)}`;
     reader.scrollTop = keepScroll ? top : 0;
     syncPickers(data);
@@ -369,6 +402,7 @@
     const q = new URLSearchParams();
     if (state.manual) { q.set("d", state.iso); q.set("s", state.slug); }
     if (state.full) q.set("full", "1");
+    if (STYLE === "vechi") q.set("stil", "vechi");
     const text = q.toString();
     history.replaceState(null, "", text ? `?${text}` : location.pathname);
   }

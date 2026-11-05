@@ -9,6 +9,7 @@ rubric stays in the data with w="false", so "Rânduiala completă" can show it.
 The block numbers below are indexes into source/blocks/ceaslovul.json.
 """
 import json
+from collections import Counter
 import re
 import sys
 from pathlib import Path
@@ -941,6 +942,27 @@ def build_sinaxar():
     return out
 
 
+# What each date keeps every year: the title and rank from the source's calendar,
+# leaving out the years when a day named by Pascha falls on it. The old calendar
+# needs it, because its dates and Pascha do not line up as they do in the source.
+MOVABLE_IN_TITLE = re.compile(r"Sf\. și Marea|Paști|Înălțarea Domnului|Odovania praznicului (?:Învierii|Înălțării|Pogorârii)|Înjumătățirea|Rusalii|Cincizecim|Intrarea Domnului în Ier|Sf\. Treime|Izvorul Tămăduirii|Sâmbăta|Lăsat|Floriilor|Vinerea|Tuturor Sfinților", re.I)
+SERVICE_NOTE = re.compile(r"\s*\([^()]*(?:aliturgic|Deni|Numai|Sâmbăta)[^()]*\)")
+
+
+def build_fixed_calendar(years):
+    votes = {}
+    for days in years.values():
+        for key, entry in days.items():
+            title = SERVICE_NOTE.sub("", entry["title"]).strip(" ;")
+            votes.setdefault(key, Counter())[(title, entry.get("rank", ""))] += 1
+    fixed = {}
+    for key, counts in sorted(votes.items()):
+        ranked = counts.most_common()
+        title, rank = next((t for t in ranked if not MOVABLE_IN_TITLE.search(t[0][0])), ranked[0])[0]
+        fixed[key] = {"title": title, "rank": rank}
+    return fixed
+
+
 def build_calendar():
     src = load("calendar")
     years, year, month, last_day, current = {}, None, 0, 0, None
@@ -1249,7 +1271,9 @@ def main():
     write("services", place_after_canon(strip_refs(build_services())))
     write("hymns", build_hymns())
     write("sinaxar", build_sinaxar())
-    for year, days in build_calendar().items():
+    calendar = build_calendar()
+    write("fixed-calendar", build_fixed_calendar(calendar))
+    for year, days in calendar.items():
         write(f"cal-{year}", days)
     treime, canon = build_canons()
     write("canon-treime", treime)

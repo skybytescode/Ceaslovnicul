@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#3a4b8c" />
+  <title>Calendarul Ceaslovnicului</title>
+  <link rel="icon" href="css/chi-rho.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <main class="calendar">
+    <h1>Alege calendarul</h1>
+    <a class="calendar__choice" id="nou" href="./?stil=nou">
+      <span class="calendar__name">Stil nou (versiunea curentă)</span>
+      <span class="calendar__url" data-url="./?stil=nou"></span>
+    </a>
+    <a class="calendar__choice" id="vechi" href="./?stil=vechi">
+      <span class="calendar__name">Stil vechi</span>
+      <span class="calendar__url" data-url="./?stil=vechi"></span>
+    </a>
+    <p>Aplicația ține minte alegerea pe acest dispozitiv.</p>
+
+    <h2>Până în ce an merge calendarul</h2>
+    <p>Calendarul complet cuprinde anii <strong>2018–2037</strong>.</p>
+    <p>După 2037, aplicația calculează în continuare Paștele, glasul, perioadele de post și sfinții zilei, dar lipsesc numele duminicilor și dezlegările la mâncare. Pe stil vechi, dezlegările nu sunt afișate în niciun an.</p>
+    <p><a href="./">Înapoi la Ceaslov</a></p>
+  </main>
+  <script>
+    for (const span of document.querySelectorAll("[data-url]")) {
+      span.textContent = new URL(span.dataset.url, location.href).href;
+    }
+    let chosen = "nou";
+    try { chosen = localStorage.getItem("ceaslovnicul-stil") || "nou"; } catch {}
+    document.getElementById(chosen)?.setAttribute("aria-current", "true");
+  </script>
+</body>
+</html>

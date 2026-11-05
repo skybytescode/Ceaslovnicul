@@ -3,9 +3,9 @@
 const CACHE = "ceaslovnicul-v1";
 const YEAR = new Date().getFullYear();
 const ASSETS = [
-  "./", "./index.html", "./manifest.webmanifest", "./css/styles.css", "./css/chi-rho.png",
+  "./", "./index.html", "./calendar.html", "./manifest.webmanifest", "./css/styles.css", "./css/chi-rho.png",
   "./js/liturgy.js", "./js/app.js",
-  "./data/services.json", "./data/hymns.json", "./data/sinaxar.json", "./data/psaltire.json", "./data/canon-treime.json",
+  "./data/services.json", "./data/hymns.json", "./data/sinaxar.json", "./data/fixed-calendar.json", "./data/psaltire.json", "./data/canon-treime.json",
   `./data/cal-${YEAR}.json`, `./data/cal-${YEAR + 1}.json`,
   ...[1, 2, 3, 4, 5, 6, 7, 8].map((g) => `./data/canon-md-${g}.json`),
 ];
