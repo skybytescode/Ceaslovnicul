@@ -1,0 +1,15 @@
+import json
+d=lambda n:json.load(open(f'docs/data/{n}.json',encoding='utf-8'))
+s=d('sinaxar'); h=d('hymns'); c=d('cal-2026')
+print('sinaxar',len(s),'no-t',[k for k,v in s.items() if not v['t']],'no-c',[k for k,v in s.items() if not v['c']])
+for k in ['11-05','11-08','12-25','08-15','03-25','12-06']:
+    v=s[k]; print(k,repr(v['rank']),v['title'][:70],[ (x['l'][:42],x['g']) for x in v['t']],[ (x['l'][:42],x['g']) for x in v['c']])
+print('inv',{k:sorted(v) for k,v in h['invierii'].items()})
+print('sapt',{k:len(v) for k,v in h['tropareSapt'].items()},{k:len(v) for k,v in h['condaceSapt'].items()})
+print('bog',{k:{e:len(x) for e,x in v.items()} for k,v in h['bog'].items()})
+print('pent',[(e['off'],len(e['t']),len(e['c'])) for e in h['pent']])
+print('triod',[(e['off'],len(e['t']),len(e['c'])) for e in h['triod']])
+print('lum',{k:len(v) for k,v in h['luminande']['v'].items()},{k:len(v) for k,v in h['luminande']['lent'].items()},{k:len(v) for k,v in h['luminande']['week'].items()})
+print('cal',len(c),c.get('11-05'),c.get('11-08'),c.get('04-12'))
+print({y:len(d(f'cal-{y}')) for y in range(2018,2038)})
+p=d('psaltire');print('psal',{k:len(v) for k,v in p.items()})

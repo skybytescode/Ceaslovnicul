@@ -1,0 +1,416 @@
+/* === Tokens === */
+:root {
+  --bg:        #eef0f7;
+  --paper:     #fbf8ee;
+  --ink:       #1f2240;
+  --ink-soft:  #4a5078;
+  --accent:    #3a4b8c;       /* deep Byzantine indigo */
+  --accent-2:  #6b7ec4;       /* lighter indigo */
+  --rubric:    #980000;       /* liturgical rubric red (matches source docx) */
+  --rule:      #c4cae6;
+  --gold:      #d4af37;       /* available token (currently unused) */
+  --shadow:    0 1px 2px rgba(30, 30, 60, 0.06), 0 6px 24px rgba(30, 30, 60, 0.10);
+  /* Star of David outlined in accent indigo (#3a4b8c) — no fill, so the
+     paper background shows through the triangles and the central hexagon.
+     Reused as 4 corner ornaments via background-image on .page__inner. */
+  --star: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><g fill='none' stroke='%233a4b8c' stroke-width='2.2' stroke-linejoin='round'><polygon points='12,1 21.5,17.5 2.5,17.5'/><polygon points='21.5,6.5 12,23 2.5,6.5'/></g></svg>");
+  --maxw:      62ch;
+  /* Reader's text size, set from the A−/A+ buttons (see player.js). Scales
+     both the body text and everything sized in rem on the content pages;
+     the player chrome never sets it, so the status bar stays put. */
+  --text-scale: 1;
+  --font-display: "Cormorant Garamond", "Garamond", "Times New Roman", serif;
+  --font-body:    "Lora", "Georgia", "Times New Roman", serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; }
+
+html { font-size: calc(100% * var(--text-scale)); }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: calc(clamp(16px, 1.05vw + 12px, 20px) * var(--text-scale));
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* Romanian-specific OpenType variants — gives î / â / ş / ţ the proper
+     glyphs in fonts that ship a `locl` table for Romanian. Belt-and-braces
+     with the <html lang="ro"> already on the page. */
+  font-feature-settings: "locl" 1;
+}
+
+/* ====================================================================== */
+/* Content pages                                                          */
+/* ====================================================================== */
+
+.page {
+  min-height: 100vh;
+  padding: clamp(1.25rem, 3vw, 3rem) clamp(1rem, 4vw, 2.5rem) 4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.page__inner {
+  position: relative;
+  width: 100%;
+  max-width: var(--maxw);
+  padding: clamp(2.5rem, 5.5vw, 3.75rem) clamp(1.75rem, 4.5vw, 3rem) clamp(2rem, 4vw, 2.75rem);
+  margin: 0.75rem;
+  /* Cream card with a rubric-red rule and a blue Star of David in each of
+     the four corners. The paper inset masks the rubric inset's interior so
+     only the 1.5px band between them shows as a red line. Stars are
+     positioned inside the rule (8px from each edge) so the inset shadow
+     doesn't clip them. */
+  background-color: var(--paper);
+  background-image: var(--star), var(--star), var(--star), var(--star);
+  background-position:
+    left 8px top 8px,
+    right 8px top 8px,
+    left 8px bottom 8px,
+    right 8px bottom 8px;
+  background-repeat: no-repeat;
+  background-size: 16px 16px;
+  box-shadow:
+    inset 0 0 0 5px   var(--paper),
+    inset 0 0 0 6.5px var(--rubric),
+    var(--shadow);
+}
+
+@media (max-width: 720px) {
+  .page__inner {
+    padding: 1.5rem 1rem 1.25rem;
+  }
+}
+
+.page__eyebrow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  font-family: var(--font-display);
+  font-variant: small-caps;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+}
+
+.page__eyebrow .scheduled-time {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.page__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.8rem, 1.2vw + 1.6rem, 2.6rem);
+  line-height: 1.15;
+  margin: 0 0 0.25rem;
+  color: var(--ink);
+  text-align: center;
+}
+
+/* Headpiece under the title: tapering gold rules with small lozenges,
+   flanking a rubric-red three-bar Orthodox cross. */
+.page__rule {
+  width: min(100%, 17rem);
+  height: 2.4rem;
+  background: center / contain no-repeat
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 272 38'><defs><linearGradient id='l' x1='0' x2='1'><stop offset='0' stop-color='%23b08d3c' stop-opacity='0'/><stop offset='1' stop-color='%23b08d3c'/></linearGradient><linearGradient id='r' x1='1' x2='0'><stop offset='0' stop-color='%23b08d3c' stop-opacity='0'/><stop offset='1' stop-color='%23b08d3c'/></linearGradient></defs><rect x='4' y='18.25' width='106' height='1.5' fill='url(%23l)'/><rect x='162' y='18.25' width='106' height='1.5' fill='url(%23r)'/><g fill='%23b08d3c'><path d='M118 19 l4 -4 l4 4 l-4 4z'/><path d='M146 19 l4 -4 l4 4 l-4 4z'/></g><g stroke='%23980000' stroke-width='2.4' stroke-linecap='round'><line x1='136' y1='2' x2='136' y2='36'/><line x1='131' y1='7.5' x2='141' y2='7.5'/><line x1='127' y1='13.5' x2='145' y2='13.5'/><line x1='130.5' y1='25.5' x2='141.5' y2='29.5'/></g></svg>");
+  border: 0;
+  margin: 0.9rem auto 1.6rem;
+}
+
+.page__body h2 {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 1em;
+  color: var(--accent);
+  margin: 1em 0 0.3em;
+  line-height: 1.4;
+  text-align: center;
+}
+/* Inline .rubric spans inside an unclassified h2, or inside any liturgical-
+   phrase class, should defer to the parent's colour AND weight — otherwise
+   a stray `<span class="rubric">` in the source paints a blue doxology red
+   or strips its bold weight (since .rubric pins font-weight: 500). */
+.page__body h2 .rubric,
+.page__body .trisagion .rubric,
+.page__body .versicle .rubric,
+.page__body .doxology .rubric,
+.page__body .kyrie .rubric,
+.page__body .psalm-heading .rubric,
+.page__body .page-ending .rubric {
+  color: inherit;
+  font-weight: inherit;
+}
+
+.page__body h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.18em;
+  color: var(--ink-soft);
+  margin: 0.8em 0 0.25em;
+  line-height: 1.3;
+}
+
+.page__body p {
+  margin: 0 0 0.5em;
+  text-align: left;
+  hyphens: none;
+  text-wrap: pretty;        /* progressive enhancement on supporting browsers */
+}
+
+/* Alignment classes honour the source docx <w:jc> values. */
+.page__body .align-center  { text-align: center; }
+.page__body .align-justify { text-align: justify; hyphens: auto; }
+.page__body .align-right   { text-align: right; }
+
+/* Rubric (red) inline text — instructions, responses, prayer-name calls. */
+.rubric {
+  color: var(--rubric);
+  font-weight: 500;
+}
+
+/* Liturgical-phrase classes pin font-size to 1em (body text size) so the
+   same prayer reads at the same size regardless of whether the source docx
+   wrapped it in <h2>, <h3> or <p>. The Trisagion / Kyrie / Doxology are
+   prayer body text; the psalm heading is the only one that keeps the
+   heading-sized 1.5em since it's a section title. */
+
+/* Red, bold, centred, body-size — Trisagion + the "Dumnezeule milostivește-Te"
+   versicle (both are short emphasised prayer lines with the same look). */
+.page__body h2.trisagion,
+.page__body h3.trisagion,
+.page__body p.trisagion,
+.page__body h2.versicle,
+.page__body h3.versicle,
+.page__body p.versicle {
+  color: var(--rubric);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 1em;
+  text-align: center;
+}
+
+/* Doxology ("Slavă Tatălui…") — accent-blue, bold, centred, body-size. */
+.page__body h2.doxology,
+.page__body h3.doxology,
+.page__body p.doxology {
+  color: var(--accent);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 1em;
+  text-align: center;
+}
+
+/* Kyrie ("Doamne miluiește…") — red, bold, centred, body-size. */
+.page__body h2.kyrie,
+.page__body h3.kyrie,
+.page__body p.kyrie {
+  color: var(--rubric);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 1em;
+  text-align: center;
+}
+
+/* Psalm headings ("Psalmul N") — red, bold, centred, heading-sized. */
+.page__body h2.psalm-heading,
+.page__body h3.psalm-heading,
+.page__body p.psalm-heading {
+  color: var(--rubric);
+  font-weight: 700;
+  font-size: 1.5em;
+  text-align: center;
+}
+
+/* Page ending ("Sfârșitul …") — accent-blue, bold, centred. Added with a
+   margin on top so it sits as a separate closing marker after the prayers. */
+.page__body h2.page-ending,
+.page__body h3.page-ending,
+.page__body p.page-ending {
+  color: var(--accent);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 1em;
+  text-align: center;
+  margin-top: 2em;
+}
+
+/* Liturgical phrases (trisagion / kyrie / doxology) usually appear as a tight
+   sequence — pull whatever follows up close so they read as one block instead
+   of being pushed apart by default heading top-margins. */
+.page__body :is(p, h2, h3).trisagion     + :is(p, h2, h3),
+.page__body :is(p, h2, h3).versicle      + :is(p, h2, h3),
+.page__body :is(p, h2, h3).kyrie         + :is(p, h2, h3),
+.page__body :is(p, h2, h3).doxology      + :is(p, h2, h3),
+.page__body :is(p, h2, h3).psalm-heading + :is(p, h2, h3) {
+  margin-top: 0.35em;
+}
+
+/* Drop cap on the first letter of each section's opening paragraph. */
+/* Section-opening initial: a plain uppercase letter, just in rubric red. */
+.dropcap {
+  color: var(--rubric);
+}
+
+/* Chi-Rho Α–Ω medallion painted between the body and the nav. */
+.page__footer-mark {
+  display: block;
+  width: 110px;
+  height: 110px;
+  margin: 2rem auto 1.25rem;
+  background: center / contain no-repeat url("chi-rho.png");
+}
+
+.page__nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+}
+
+.page__nav a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--rule);
+}
+.page__nav a:hover { border-bottom-color: var(--accent); }
+.page__nav .spacer { flex: 1; }
+.page__nav--top {
+  margin: 0 0 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+@media (max-width: 540px) {
+  .page { padding: 0.5rem 0.25rem 2rem; }
+  .page__body p { font-size: 0.95rem; }
+  .page__footer-mark { width: 84px; height: 84px; margin: 1.5rem auto 1rem; }
+}
+
+@media print {
+  body { background: #fff; }
+  .page__inner { box-shadow: none; }
+  .page__nav { display: none; }
+}
+
+/* ====================================================================== */
+/* Player chrome                                                           */
+/* ====================================================================== */
+
+body.player {
+  height: 100vh;
+  overflow: hidden;
+  background: #14172e;
+  display: flex;
+  flex-direction: column;
+}
+
+.frame-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  background: var(--bg);
+}
+
+#player-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--bg);
+}
+
+.status-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: #14172e;
+  color: #e5e8f5;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  border-top: 2px solid var(--accent);
+}
+
+.status-cell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status-now  { color: #e5e8f5; font-variant-numeric: tabular-nums; }
+.status-slot { color: #c8d0ee; font-weight: 600; flex: 1; text-align: center; }
+.status-next { color: #9aa3c8; }
+
+.fs-btn {
+  background: transparent;
+  color: #e5e8f5;
+  border: 1px solid #3a4072;
+  border-radius: 4px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  line-height: 1;
+}
+.fs-btn:hover { background: #1f2347; }
+.fs-btn:disabled { opacity: 0.35; cursor: default; background: transparent; }
+.text-btn { font-family: var(--font-display); font-weight: 700; min-width: 2.1rem; }
+/* Text-size, notification and fullscreen buttons wrap as one group. */
+.status-buttons { display: inline-flex; gap: 0.4rem; flex: 0 0 auto; }
+
+@media (max-width: 540px) {
+  .status-bar { flex-wrap: wrap; font-size: 0.82rem; gap: 0.4rem; padding: 0.4rem 0.6rem; }
+  .status-slot { order: -1; flex-basis: 100%; text-align: left; }
+  .status-next { font-size: 0.78rem; }
+}
+
+/* ====================================================================== */
+/* Ceaslovnicul: one page, no iframe                                       */
+/* ====================================================================== */
+body.app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; background: #14172e; }
+#reader { flex: 1 1 auto; min-height: 0; overflow-y: auto; background: var(--bg); -webkit-overflow-scrolling: touch; }
+.page__inner { font-size: calc(1rem * var(--reader-scale, 1)); }
+.page__inner .page__body p { font-size: 1em; }
+.day { text-align: center; color: var(--ink-soft); font-size: 0.92em; margin: 0 0 0.4rem; line-height: 1.4; }
+.day__saint { color: var(--ink); font-family: var(--font-display); font-size: 1.12em; font-weight: 600; }
+.day__rubric { color: var(--rubric); }
+.note { text-align: center; font-size: 0.86em; color: var(--ink-soft); margin: 0 0 0.9rem; }
+.slot { margin: 0.2em 0 0.7em; }
+.slot__label { text-align: center; color: var(--rubric); font-weight: 500; margin: 0.6em 0 0.15em; }
+.hidden-branch { opacity: 0.42; border-left: 2px solid var(--rule); padding-left: 0.5em; }
+.catisma { margin: 0.5em 0 0.9em; border: 1px solid var(--rule); border-radius: 4px; padding: 0.35em 0.7em; }
+.catisma summary { cursor: pointer; color: var(--rubric); font-weight: 600; text-align: center; }
+.service-nav { display: flex; justify-content: space-between; gap: 0.6rem; font-family: inherit; }
+.service-nav--top { margin-bottom: 1.4rem; }
+.service-nav--bottom { margin-top: 2.2rem; }
+.service-nav__btn { display: inline-flex; align-items: center; gap: 0.45em; min-height: 44px; max-width: 48%; padding: 0.35em 0.7em; font: inherit; font-size: 0.95rem; line-height: 1.2; color: var(--accent); cursor: pointer; }
+.service-nav__next { text-align: right; margin-left: auto; }
+.service-nav__prev { text-align: left; }
+.page__eyebrow { justify-content: center; font-variant-numeric: lining-nums; }
+.service-nav__time { display: block; font-size: 0.82em; font-weight: 600; opacity: 0.8; }
+.service-nav__arrow { flex: 0 0 auto; font-size: 1.25em; }
+.service-nav__btn:hover { background: var(--bg); }
+.service-nav__btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media print { .service-nav { display: none; } }
+.service-next { margin-top: 2.2em; border-top: 1px solid var(--rule); padding-top: 1em; text-align: center; }
+.linkbtn { background: none; border: 1px solid var(--rule); border-radius: 4px; padding: 0.3em 0.7em; color: var(--accent); font: inherit; cursor: pointer; }
+#banner { flex: 0 0 auto; display: flex; gap: 0.6rem; justify-content: center; align-items: center; padding: 0.4rem 0.8rem; background: var(--accent); color: #fff; font: 15px var(--font-body); }
+#banner[hidden] { display: none; }
+#banner button { background: #fff; color: var(--accent); border: 0; border-radius: 4px; padding: 0.2rem 0.6rem; font: inherit; cursor: pointer; }
+.status-bar { font-size: 14px; }
+.status-bar select, .status-bar input[type="date"] { background: #1f2347; color: #e5e8f5; border: 1px solid #3a4072; border-radius: 4px; font: 13px var(--font-body); padding: 0.15rem 0.25rem; min-width: 0; }
+.status-bar select { flex: 1 1 9rem; max-width: 19rem; }
+@media (max-width: 720px) {
+  .status-bar { flex-wrap: wrap; gap: 0.35rem; padding: 0.35rem 0.5rem; }
+  .status-now, .status-next { font-size: 12px; }
+  .status-next { flex: 1 1 100%; order: 3; }
+  .status-buttons { order: 2; margin-left: auto; }
+}
+.fs-btn[aria-pressed="true"] { background: #3a4b8c; border-color: #6b7ec4; }

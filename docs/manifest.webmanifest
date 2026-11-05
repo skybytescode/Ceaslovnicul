@@ -1,0 +1,13 @@
+{
+  "name": "Ceaslovnicul",
+  "short_name": "Ceaslovnicul",
+  "description": "Ceaslovul cel Mare, rânduit automat după zi și după ceas (Europe/Chișinău).",
+  "lang": "ro",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#14172e",
+  "theme_color": "#3a4b8c",
+  "icons": [{ "src": "css/chi-rho.png", "sizes": "540x540", "type": "image/png", "purpose": "any" }]
+}

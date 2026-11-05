@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#3a4b8c" />
+  <title>Ceaslovnicul</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="css/chi-rho.png" />
+  <link rel="icon" href="css/chi-rho.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body class="app">
+  <main id="reader"><article class="page"><div class="page__inner" id="page"><p class="note">Se încarcă…</p></div></article></main>
+  <div id="banner" role="status" hidden><span id="banner-text"></span><button id="banner-go" type="button">Deschide</button></div>
+  <aside class="status-bar">
+    <span class="status-cell status-now" id="status-now">—</span>
+    <select id="pick-service" aria-label="Slujba"></select>
+    <input id="pick-date" type="date" aria-label="Ziua" />
+    <span class="status-cell status-next" id="status-next">—</span>
+    <button id="install-btn" type="button" class="fs-btn" hidden>⬇ Instalează</button>
+    <span class="status-buttons">
+      <button id="now-btn" type="button" class="fs-btn" title="Înapoi la ceasul curent" aria-label="Înapoi la ceasul curent" hidden>⟲</button>
+      <button id="full-btn" type="button" class="fs-btn" title="Rânduiala completă: arată și ce nu se citește azi" aria-label="Rânduiala completă" aria-pressed="false">☰</button>
+      <button id="text-smaller" type="button" class="fs-btn text-btn" aria-label="Text mai mic">A−</button>
+      <button id="text-larger" type="button" class="fs-btn text-btn" aria-label="Text mai mare">A+</button>
+      <button id="notif-btn" type="button" class="fs-btn" aria-label="Notificări">🔕</button>
+    </span>
+  </aside>
+  <script src="js/liturgy.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.vscode/
+.idea/
+.claude/
+.DS_Store
+# Raw downloads (40 MB), recreated by tools/fetch_source.sh
+source/raw/
