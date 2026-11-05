@@ -1220,6 +1220,23 @@ SOURCE_REFS = [(re.compile(a), b) for a, b in [
 ]]
 
 
+# The reader's prayer "Pentru buna sporire..." is kept without the petitions
+# for the hierarchs, the people and the rulers of the country.
+COMMEMORATIONS = [(re.compile(a), b) for a, b in [
+    (r"Pentru\s+Prea\s*[Ff]ericitul\s+Părintele\s+nostru\s*\(N\),\s*Patriarhul\s+Bisericii\s+Ortodoxe\s+Române\s+pentru\s+\([ÎîIi]nalt-\)\s*Prea\s*[Ss]fințitul\s+\(Arhi-\)\s*Episcopul\s+\(și\s+Mitropolitul\)\s+nostru\s*\(N\),\s*și\s+pentru", "Pentru"),
+    (r"Pentru\s+binecredinciosul\s+popor\s+român\s+de\s+pretutindeni,\s*pentru\s+cârmuitorii\s+țării\s+noastre,\s*pentru\s+mai\s+marii\s+orașelor\s+și\s+ai\s+satelor\s+și\s+pentru\s+iubitoarea\s+de\s+Hristos\s+oaste\.\s*", ""),
+    (r"Pentru\s+arhiereii\s+ortodocși,?\s+și\s+pentru\s+toți", "Pentru toți"),
+    (r"Să\s+ne\s+rugăm\s+pentru\s+conducătorii\s+țării\.\s*", ""),
+    # The litanies, without the same petitions.
+    (r"Pentru\s+Prea\s*Fericitul\s+Părintele\s+nostru\s*\(N\),?\s*Patriarhul\s+Bisericii\s+Ortodoxe\s+Române\s*(?:și\s+|ș)?pentru\s+\([ÎîIi]nalt-\)\s*Prea\s*[Ss]fințitul\s+\(Arhi-\)\s*Episcopul\s+\(și\s+Mitropolitul\)\s+nostru\s*\(N\)ț?,\s*pentru\s+cinstita", "Pentru cinstita"),
+    (r"Pentru\s+binecredinciosul\s+popor\s+român[^!]*?oștire,\s*Domnului\s+să\s+ne\s+rugăm\s*!\s*", ""),
+    (r"(Încă\s+ne\s+rugăm\s+pentru)\s+Prea\s*Fericitul[^!]*?nostru\s*\(N\)ț?,\s*și\s+pentru\s+toți", r"\1 toți"),
+    (r"Încă\s+ne\s+rugăm\s+pentru\s+Prea\s*Fericitul[^!]*?mântuirea\s+lui\s*!\s*", ""),
+    (r"\s*\(Aici\s+se\s+pot\s+(?:spune|adăuga)\s+ectenii\s+pentru\s+felurite\s+cereri,[^)]*\)\.?", ""),
+    (r"Încă\s+ne\s+rugăm\s+pentru\s+binecredinciosul\s+popor\s+român[^!]*?!\s*(?:Strana\s*:\s*Doamne\s+miluiește\s*!\s*\(de\s+3\s+ori[^)]*\)\.?\s*)?", ""),
+]]
+
+
 def sub_across_runs(runs, pattern, repl):
     """re.sub over the runs' joined text, leaving the formatting of what stays."""
     joined = "".join(r[0] for r in runs)
@@ -1256,6 +1273,8 @@ def strip_refs(node):
             elif word and LINK_TITLE.fullmatch(word):
                 continue
         runs.append([text, flags])
+    for pattern, repl in COMMEMORATIONS:
+        runs = sub_across_runs(runs, pattern, repl)
     before = "".join(r[0] for r in runs)
     for pattern, repl in SOURCE_REFS[:-2]:
         runs = sub_across_runs(runs, pattern, repl)

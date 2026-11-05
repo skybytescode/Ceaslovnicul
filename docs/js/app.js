@@ -274,15 +274,19 @@
   function dayHeader(parent, iso, c, title, time) {
     const lit = c.lit;
     const head = el("div", "day");
-    const facts = [formatDate(iso)];
+    const dates = [formatDate(iso)];
     if (c.style === "vechi") {
       const [, m, d] = L.addDays(iso, -13).split("-").map(Number);
-      facts.push(`stil vechi: ${d} ${MONTHS[m - 1]}`);
+      dates.push(`stil vechi: ${d} ${MONTHS[m - 1]}`);
     }
+    const facts = [];
     if (c.fastName) facts.push(c.fastName);
     else if (c.periodName !== "Octoih") facts.push(c.periodName);
     if (!c.bright) facts.push(`glasul ${lit.glas}`);
-    head.append(el("div", "", facts.join(" · ")));
+    const line = el("div");
+    line.append(el("span", "day__date", dates.join(" · ")));
+    if (facts.length) line.append(` · ${facts.join(" · ")}`);
+    head.append(line);
     const saint = lit.cal?.title || lit.sin?.title || "";
     if (lit.cal?.sunday) head.append(el("div", "day__saint", lit.cal.sunday));
     if (saint) {
