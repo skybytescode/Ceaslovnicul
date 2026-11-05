@@ -963,6 +963,29 @@ def build_fixed_calendar(years):
     return fixed
 
 
+# Old-style days, fetched by tools/fetch_vechi.py. The lists carry notes and Sunday
+# names that the app gives elsewhere, and on Pascha every saint of the year.
+NOT_A_SAINT = re.compile(r"^(?:\W*$|Zi |Dezlegare|Duminica|S[ăa]pt[ăa]m[âa]na|[A-Z][a-z]+\.? [IVX]+, ?\d)")
+FAST_REMARK = re.compile(r"\s*(?:ZI FĂRĂ POST|Zi f[ăa]r[ăa] post|Zi de post|Dezlegare la \w+)\.?", re.I)
+MOST_SAINTS = 100
+
+
+def build_old_style():
+    out = {}
+    for path in sorted((ROOT / "source" / "vechi").glob("*.json")):
+        days = {}
+        for key, day in json.loads(path.read_text(encoding="utf-8")).items():
+            saints = []
+            if len(day["saints"]) <= MOST_SAINTS:
+                for _, text in day["saints"]:
+                    text = FAST_REMARK.sub("", clean(text)).strip()
+                    if text and not NOT_A_SAINT.match(text) and text not in saints:
+                        saints.append(text)
+            days[key] = {"post": clean(day["post"]), "saints": saints}
+        out[path.stem] = days
+    return out
+
+
 def build_calendar():
     src = load("calendar")
     years, year, month, last_day, current = {}, None, 0, 0, None
@@ -1271,6 +1294,8 @@ def main():
     write("services", place_after_canon(strip_refs(build_services())))
     write("hymns", build_hymns())
     write("sinaxar", build_sinaxar())
+    for year, days in build_old_style().items():
+        write(f"vechi-{year}", days)
     calendar = build_calendar()
     write("fixed-calendar", build_fixed_calendar(calendar))
     for year, days in calendar.items():

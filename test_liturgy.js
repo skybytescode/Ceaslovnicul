@@ -179,7 +179,9 @@ for (const [iso, off] of [["2026-04-05", -7], ["2026-05-21", 39], ["2026-05-31",
 check("Paschal troparion is in the source data", services.pasti[0].r.map((r) => r[0]).join("").trim(), "Hristos a înviat din morți, cu moartea pe moarte călcând, și celor din morminte viață dăruindu-le. (de 3 ori).");
 
 // Old calendar: fixed dates fall 13 days later, Pascha does not move.
-const oldStyle = (iso) => L.dayContext(iso, { calendar: load(`cal-${iso.slice(0, 4)}`), sinaxar, style: "vechi", fixed: load("fixed-calendar") });
+const noVechi = (iso) => L.dayContext(iso, { calendar: load(`cal-${iso.slice(0, 4)}`), sinaxar, style: "vechi", fixed: load("fixed-calendar") });
+const oldStyle = noVechi;
+const withVechi = (iso) => L.dayContext(iso, { calendar: load(`cal-${iso.slice(0, 4)}`), sinaxar, style: "vechi", fixed: load("fixed-calendar"), vechi: load(`vechi-${iso.slice(0, 4)}`) });
 check("Old style: Nativity on 7 January", oldStyle("2027-01-07").m, "12-25");
 check("Old style: Nativity is the feast", [oldStyle("2027-01-07").feast, L.tropare(oldStyle("2027-01-07"), hymns).length, /Nașterii/.test(L.tropare(oldStyle("2027-01-07"), hymns)[0].label)], [true, 1, true]);
 check("Old style: 25 December is ordinary", oldStyle("2026-12-25").feast, false);
@@ -189,7 +191,7 @@ check("Old style: Nativity Fast begins 28 November", [oldStyle("2026-11-27").fas
 check("Old style: Apostles' Fast ends 11 July", [oldStyle("2026-07-11").fastName, oldStyle("2026-07-12").fastName === "Postul Sfinților Apostoli"], ["Postul Sfinților Apostoli", false]);
 check("Old style: Dormition Fast 14-27 August", [oldStyle("2026-08-13").fastName === "Postul Adormirii Maicii Domnului", oldStyle("2026-08-14").fastName, oldStyle("2026-08-27").fastName, oldStyle("2026-08-28").fastName === "Postul Adormirii Maicii Domnului"], [false, "Postul Adormirii Maicii Domnului", "Postul Adormirii Maicii Domnului", false]);
 check("Old style: same Pascha, same tone", [oldStyle("2026-04-12").rank, oldStyle("2026-11-01").glas], ["(†)", ctx("2026-11-01").glas]);
-check("Old style: no dispensation notes from the new calendar", oldStyle("2026-12-25").cal.note, undefined);
+check("Old style: no dispensation notes from the new calendar", noVechi("2026-12-25").cal.note, undefined);
 check("Old style: kathismata follow the old date", L.catisme(oldStyle("2027-01-03"), "u"), [2, 3, 17]);
 check("Old style: fixed-feast Sunday names are dropped", oldStyle("2026-12-20").cal.sunday, undefined);
 check("Old style: Pascha-based Sunday names stay", /după Rusalii$/.test(oldStyle("2026-11-01").cal.sunday), true);
@@ -198,6 +200,13 @@ const fixedCal = load("fixed-calendar");
 check("Fixed calendar covers every date", Object.keys(fixedCal).length, 366);
 check("Fixed calendar has no movable day in it", Object.entries(fixedCal).filter(([, e]) => /Sf\. și Marea|Sf\. Paști|Înălțarea Domnului|Rusalii|Floriilor/.test(e.title)).map(([k]) => k), []);
 check("Fixed calendar uses only the calendar's signs", Object.values(fixedCal).filter((e) => e.rank && !e.rank.includes("†")).length, 0);
+check("Old style: fast from the old calendar", [withVechi("2026-11-04").cal.note, withVechi("2026-11-28").cal.note, withVechi("2026-04-11").cal.note, withVechi("2027-01-07").cal.note], ["Dezlegare la ulei", "Postul Crăciunului. Dezlegare la pește", "Postul Paștelui. Post negru", "Zi fără post"]);
+check("Old style: saints of the day", /Averchie/.test(withVechi("2026-11-04").cal.title) && withVechi("2026-11-04").cal.saints.length > 10, true);
+check("Old style: the feast is named once, without fast remarks", /Nașterea Domnului, Dumnezeului/.test(withVechi("2027-01-07").cal.saints[0]) && !/ZI FĂRĂ POST/.test(withVechi("2027-01-07").cal.saints[0]), true);
+check("Old style: Pascha is not every saint of the year", [withVechi("2026-04-12").cal.title, withVechi("2026-04-12").cal.saints], ["Învierea Domnului (Sfintele Paști)", undefined]);
+check("Old style: no Sunday names or readings among the saints", Array.from({ length: 12 }, (_, i) => String(2026 + i)).flatMap((y) => Object.values(load(`vechi-${y}`)).flatMap((d) => d.saints)).filter((t) => /^(Duminica|Zi |Dezlegare|S[ăa]pt[ăa]m)/.test(t) || !/\w/.test(t)), []);
+check("Old style: outside the fetched years it still works", [noVechi("2030-11-05").cal.note, /Iacob/.test(noVechi("2030-11-05").cal.title)], [undefined, true]);
+check("New style ignores old-style data", L.dayContext("2026-11-05", { calendar: load("cal-2026"), sinaxar, vechi: load("vechi-2026") }).cal.saints, undefined);
 check("New style is unchanged by the option", ctx("2026-11-05").cal.title, load("cal-2026")["11-05"].title);
 
 // Past the source's calendar the app still works.
@@ -205,6 +214,8 @@ const late = L.dayContext("2040-05-06", { calendar: null, sinaxar });
 check("Beyond the calendar: Pascha still computed", [late.d, late.rank, late.cal.title], [0, "(†)", "Învierea Domnului (Sfintele Paști)"]);
 const calFiles = fs.readdirSync(path.join(__dirname, "docs/data")).filter((f) => f.startsWith("cal-")).sort();
 check("Calendar page states the real range", [calFiles[0], calFiles[calFiles.length - 1]], ["cal-2018.json", "cal-2037.json"]);
+check("Old-style data covers 2026-2037", fs.readdirSync(path.join(__dirname, "docs/data")).filter((f) => f.startsWith("vechi-")).length, 12);
+check("Old-style range on the calendar page", /2026–2037/.test(fs.readFileSync(path.join(__dirname, "docs/calendar.html"), "utf8")), true);
 check("Calendar page text", /2018[^<]*2037/.test(fs.readFileSync(path.join(__dirname, "docs/calendar.html"), "utf8")), true);
 
 // Arrows between services.

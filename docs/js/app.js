@@ -55,8 +55,9 @@
     const [sinaxar, hymns, services] = await Promise.all([fetchData("sinaxar"), fetchData("hymns"), fetchData("services")]);
     const next = L.addDays(iso, 1);
     const [calendar, nextCalendar] = await Promise.all([fetchData(`cal-${iso.slice(0, 4)}`), fetchData(`cal-${next.slice(0, 4)}`)]);
-    const fixed = await fetchData("fixed-calendar");
-    return { sinaxar, hymns, services, calendar, next: nextCalendar, style: STYLE, fixed };
+    if (STYLE !== "vechi") return { sinaxar, hymns, services, calendar, next: nextCalendar, style: STYLE };
+    const [fixed, vechi, nextVechi] = await Promise.all([fetchData("fixed-calendar"), fetchData(`vechi-${iso.slice(0, 4)}`), fetchData(`vechi-${next.slice(0, 4)}`)]);
+    return { sinaxar, hymns, services, calendar, next: nextCalendar, style: STYLE, fixed, vechi, nextVechi };
   }
 
   // ── Clock ────────────────────────────────────────────────────────────────
@@ -288,6 +289,12 @@
       // The crosses are the calendar's signs; the Sinaxar's dots are only for the rules.
       const sign = lit.rank.includes("†") ? `${lit.rank} ` : "";
       head.append(el("div", "day__saint", `${sign}${saint}`));
+      if (lit.cal?.saints?.length > L.HEADER_SAINTS) {
+        const all = el("details", "day__all");
+        all.append(el("summary", "", `Toți sfinții zilei (${lit.cal.saints.length})`));
+        for (const name of lit.cal.saints) all.append(el("p", "", name));
+        head.append(all);
+      }
     }
     if (c.evening) head.append(el("div", "day__rubric", "Seara: troparele și condacele sunt ale zilei de mâine."));
     if (lit.cal?.note) head.append(el("div", "day__rubric", lit.cal.note));

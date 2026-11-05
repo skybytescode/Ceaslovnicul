@@ -8,6 +8,7 @@ Sursa textelor: <https://sites.google.com/site/ortodox007/> (ediția din 2003).
 Câteva texte pe care site-ul le dă doar prescurtat sunt de pe <https://doxologia.ro/>;
 sunt notate în `build.py`, iar `source/expansions.txt` arată sursa fiecărui text completat.
 Câteva rugăciuni și irmoase au fost completate de autorul aplicației; sunt notate tot acolo.
+Pe stil vechi, sfinții zilei și postul vin de pe <https://calendar.ortodox.md/> (`tools/fetch_vechi.py`, `source/vechi/`).
 Permisiunea de republicare a textelor de pe aceste site-uri nu a fost verificată.
 
 Aplicația: <https://skybytescode.github.io/Ceaslovnicul/>

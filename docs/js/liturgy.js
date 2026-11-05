@@ -70,12 +70,21 @@
     return /după Rusalii/.test(name) ? name.replace(/\s*\(.*$/, "") : undefined;
   }
 
+  const HEADER_SAINTS = 3;
+
   // A day's entry where the source's calendar cannot give it: on the old calendar,
   // whose saints fall 13 days later, and in years beyond the source's calendar.
-  function computedDay(d, day, civil, old) {
+  function computedDay(d, day, civil, old, vechi) {
     const great = MOVABLE_FEASTS[d];
-    const title = great ?? [HOLY_WEEK[d], day?.title].filter(Boolean).join("; ");
-    return { title, rank: great ? "(†)" : day?.rank ?? "", sunday: old ? oldStyleSunday(civil?.sunday) : civil?.sunday };
+    const saints = vechi?.saints.length ? vechi.saints : null;
+    const named = saints ? saints.slice(0, HEADER_SAINTS).join(" ") : day?.title;
+    return {
+      title: great ?? [HOLY_WEEK[d], named].filter(Boolean).join("; "),
+      rank: great ? "(†)" : day?.rank ?? "",
+      sunday: old ? oldStyleSunday(civil?.sunday) : civil?.sunday,
+      note: vechi?.post || undefined,
+      saints: saints ?? undefined,
+    };
   }
 
   // What the rubrics ask about one civil date. With `data.style` "vechi" the saints
@@ -87,7 +96,7 @@
     const m = mmdd(old ? addDays(iso, -13) : iso);
     const civil = data?.calendar?.[mmdd(iso)];
     const sin = data?.sinaxar?.[m];
-    const cal = civil && !old ? civil : computedDay(d, data?.fixed?.[m] ?? sin, civil, old);
+    const cal = civil && !old ? civil : computedDay(d, data?.fixed?.[m] ?? sin, civil, old, old ? data?.vechi?.[mmdd(iso)] : null);
     const rank = cal.rank;
     const rankN = RANKS.indexOf(rank);
 
@@ -131,7 +140,7 @@
   function serviceContext(iso, slug, data) {
     const c = dayContext(iso, data);
     const evening = EVENING.has(slug);
-    const lit = evening ? dayContext(addDays(iso, 1), data.next ? { ...data, calendar: data.next } : data) : c;
+    const lit = evening ? dayContext(addDays(iso, 1), data.next ? { ...data, calendar: data.next, vechi: data.nextVechi } : data) : c;
     return { ...c, lit, eve: c.dow, evening };
   }
 
@@ -289,7 +298,7 @@
 
   const api = {
     pascha, addDays, diffDays, glasOf, voscrOf, dayContext, serviceContext, resolveSlug, adjacentSlots,
-    tropare, condac, bogorodicina, catisme, moveableEntry,
+    tropare, condac, bogorodicina, catisme, moveableEntry, HEADER_SAINTS,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.Liturgy = api;
