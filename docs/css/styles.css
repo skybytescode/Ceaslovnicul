@@ -1,4 +1,10 @@
 /* === Tokens === */
+/* Two colours, each with one meaning, as in the service books:
+   red (--rubric)  = what the book prints in red: rubrics, red initials, how many
+                     times, bows and prostrations, verse numbers, the day's date;
+   blue (--accent) = the names of things and the way through them, the blue of the
+                     corner stars: service and psalm titles, hymn and section names,
+                     the arrows and buttons. The words that are said stay in ink. */
 :root {
   --bg:        #eef0f7;
   --paper:     #fbf8ee;
@@ -111,7 +117,7 @@ body {
   font-size: clamp(1.8rem, 1.2vw + 1.6rem, 2.6rem);
   line-height: 1.15;
   margin: 0 0 0.25rem;
-  color: var(--ink);
+  color: var(--accent);
   text-align: center;
 }
 
@@ -154,7 +160,7 @@ body {
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 1.18em;
-  color: var(--ink-soft);
+  color: var(--accent);
   margin: 0.8em 0 0.25em;
   line-height: 1.3;
 }
@@ -384,10 +390,10 @@ body.app { height: 100vh; height: 100dvh; display: flex; flex-direction: column;
 .day__date { color: var(--rubric); }
 .note { text-align: center; font-size: 0.86em; color: var(--ink-soft); margin: 0 0 0.9rem; }
 .slot { margin: 0.2em 0 0.7em; }
-.slot__label { text-align: center; color: var(--rubric); font-weight: 500; margin: 0.6em 0 0.15em; }
+.slot__label { text-align: center; color: var(--accent); font-weight: 600; margin: 0.6em 0 0.15em; }
 .hidden-branch { opacity: 0.42; border-left: 2px solid var(--rule); padding-left: 0.5em; }
 .catisma { margin: 0.5em 0 0.9em; border: 1px solid var(--rule); border-radius: 4px; padding: 0.35em 0.7em; }
-.catisma summary { cursor: pointer; color: var(--rubric); font-weight: 600; text-align: center; }
+.catisma summary { cursor: pointer; color: var(--accent); font-weight: 600; text-align: center; }
 .day__all { margin: 0.4rem 0 0.2rem; text-align: left; }
 .day__all summary { text-align: center; cursor: pointer; color: var(--accent); min-height: 44px; line-height: 44px; }
 .day__all p { margin: 0.35rem 0; color: var(--ink); }
@@ -401,6 +407,7 @@ a.page__rule:focus-visible, a.page__footer-mark:focus-visible { outline: 2px sol
 .calendar__choice[aria-current="true"] { border: 2px solid var(--accent); }
 .calendar__name { display: block; font-weight: 700; color: var(--accent); }
 .calendar__url { display: block; font-size: 0.85rem; overflow-wrap: anywhere; color: var(--ink-soft); margin-top: 0.25rem; }
+.calendar__desc { display: block; font-size: 0.9rem; color: var(--ink); margin-top: 0.25rem; }
 .service-nav { display: flex; justify-content: space-between; gap: 0.6rem; font-family: inherit; }
 .service-nav--top { margin-bottom: 1.4rem; }
 .service-nav--bottom { margin-top: 2.2rem; }
@@ -428,3 +435,47 @@ a.page__rule:focus-visible, a.page__footer-mark:focus-visible { outline: 2px sol
   .status-buttons { order: 2; margin-left: auto; }
 }
 .fs-btn[aria-pressed="true"] { background: #3a4b8c; border-color: #6b7ec4; }
+
+/* Psalms: the title stands apart, and every verse starts its own line with its number. */
+.page__body .psalm-title {
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 1.15em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-variant-numeric: lining-nums;
+  color: var(--accent);
+  margin: 1.6em 0 0.6em;
+  padding-top: 0.8em;
+  border-top: 1px solid var(--rule);
+}
+.page__body .psalm-title .rubric { color: inherit; font-weight: inherit; }
+.page__body p.verse {
+  position: relative;
+  padding-left: 2.2em;
+  margin: 0 0 0.3em;
+}
+.verse__n {
+  position: absolute;
+  left: 0;
+  top: 0.2em;
+  width: 1.8em;
+  text-align: right;
+  font-size: 0.78em;
+  font-weight: 600;
+  font-variant-numeric: lining-nums tabular-nums;
+  color: var(--rubric);
+  user-select: none;
+}
+.page__body p.verse + p:not(.verse):not(.psalm-title) { margin-top: 0.8em; }
+
+/* A title kept from the rubrics (Psalmul 50, Rugăciunea Sfântului Efrem...) reads as a name, in blue. */
+.rubric--title { color: var(--accent); font-weight: 600; }
+
+.reading-time { color: var(--ink-soft); font-variant: normal; letter-spacing: 0; font-size: 0.85em; }
+.page__eyebrow { flex-wrap: wrap; column-gap: 0.9rem; }
+.reading-time:empty { display: none; }
+
+.vigil-note { text-align: center; margin: 1.5em 0; padding: 1.2em 1em; border: 1px solid var(--rule); border-radius: 6px; }
+.vigil-note p { text-align: center; margin-bottom: 1em; }
+.vigil-note .linkbtn { display: block; margin: 0.6em auto 0; min-height: 44px; }

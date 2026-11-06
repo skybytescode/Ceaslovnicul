@@ -38,12 +38,15 @@
   const STYLE = (() => {
     const asked = new URLSearchParams(location.search).get("stil");
     try {
-      if (asked === "vechi" || asked === "nou") localStorage.setItem("ceaslovnicul-stil", asked);
+      if (asked === "vechi" || asked === "nou" || asked === "program") localStorage.setItem("ceaslovnicul-stil", asked);
       return asked || localStorage.getItem("ceaslovnicul-stil") || "nou";
     } catch {
       return asked || "nou";
     }
   })();
+  // "Program de rugăciune": the old style, with only the words that are said.
+  const PROGRAM = STYLE === "program";
+  const OLD = STYLE === "vechi" || PROGRAM;
   function fetchData(name) {
     if (!cache.has(name)) {
       cache.set(name, fetch(`data/${name}.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null));
@@ -55,9 +58,9 @@
     const [sinaxar, hymns, services] = await Promise.all([fetchData("sinaxar"), fetchData("hymns"), fetchData("services")]);
     const next = L.addDays(iso, 1);
     const [calendar, nextCalendar] = await Promise.all([fetchData(`cal-${iso.slice(0, 4)}`), fetchData(`cal-${next.slice(0, 4)}`)]);
-    if (STYLE !== "vechi") return { sinaxar, hymns, services, calendar, next: nextCalendar, style: STYLE };
+    if (!OLD) return { sinaxar, hymns, services, calendar, next: nextCalendar, style: "nou" };
     const [fixed, vechi, nextVechi] = await Promise.all([fetchData("fixed-calendar"), fetchData(`vechi-${iso.slice(0, 4)}`), fetchData(`vechi-${next.slice(0, 4)}`)]);
-    return { sinaxar, hymns, services, calendar, next: nextCalendar, style: STYLE, fixed, vechi, nextVechi };
+    return { sinaxar, hymns, services, calendar, next: nextCalendar, style: "vechi", fixed, vechi, nextVechi };
   }
 
   // ── Clock ────────────────────────────────────────────────────────────────
@@ -72,9 +75,12 @@
   }
 
   // The day's slots, without those not read that day.
+  const VIGIL_TIME = "22:00";
   function slotsFor(iso, data) {
     const c = L.dayContext(iso, data);
-    return SCHEDULE.map((s) => ({ ...s, resolved: L.resolveSlug(s.slug, c) })).filter((s) => s.resolved);
+    const slots = SCHEDULE.map((s) => ({ ...s, resolved: L.resolveSlug(s.slug, c) })).filter((s) => s.resolved);
+    if (L.vigilEvening(iso, data)) slots.push({ time: VIGIL_TIME, slug: "priveghere", title: "Privegherea", resolved: "priveghere" });
+    return slots;
   }
 
   function activeSlot(slots, hhmm) {
@@ -98,15 +104,26 @@
     return e;
   }
 
-  function renderBlock(b) {
-    const e = el(b.t === "h" ? "h3" : "p", b.c ? "align-center" : "");
-    for (const [text, flags] of b.r) {
+  function renderBlock(b, c, st) {
+    const runs = PROGRAM && c && b.t !== "h" && !b.v ? L.prayerRuns(b.r, c, st) : b.r;
+    if (!runs) return null;
+    const e = el(b.t === "h" ? "h3" : "p", b.pt ? "psalm-title" : b.c ? "align-center" : "");
+    if (b.v) {
+      e.classList.add("verse");
+      e.append(el("span", "verse__n", String(b.v)));
+    }
+    let prev = "";
+    runs.forEach(([raw, flags], i) => {
+      let text = b.v && i === 0 ? raw.trimStart() : raw;
+      // A word glued to the punctuation before it, where two runs meet.
+      if (/[!?.,;:]$/.test(prev) && /^\p{L}/u.test(text)) text = ` ${text}`;
+      if (text) prev = text;
       let node = document.createTextNode(text);
-      if (flags.includes("r")) { const s = el("span", "rubric"); s.append(node); node = s; }
+      if (flags.includes("r")) { const s = el("span", flags.includes("t") ? "rubric rubric--title" : "rubric"); s.append(node); node = s; }
       if (flags.includes("i")) { const s = el("em"); s.append(node); node = s; }
       if (flags.includes("b")) { const s = el("strong"); s.append(node); node = s; }
       e.append(node);
-    }
+    });
     return e;
   }
 
@@ -180,6 +197,7 @@
         const list = L.catisme(c, a.at);
         for (const n of list) {
           const d = el("details", "catisma");
+          if (n !== "polieleu") { d.dataset.kind = "catisma"; d.dataset.n = String(n); }
           const s = el("summary", "", n === "polieleu" ? "Polieleul (în locul Catismei a 17-a)" : `Catisma ${n}`);
           d.append(s);
           if (n === "polieleu") {
@@ -190,7 +208,7 @@
               if (d.dataset.ready) return;
               d.dataset.ready = "1";
               const psalter = await fetchData("psaltire");
-              for (const b of psalter?.[n] ?? []) d.append(renderBlock(b));
+              { const st = {}; for (const b of psalter?.[n] ?? []) { const n2 = renderBlock(b, c, st); if (n2) d.append(n2); } }
             });
           }
           box.append(d);
@@ -199,7 +217,7 @@
       }
       case "treimice": {
         box.append(el("p", "slot__label", `Cântările Treimice, glasul ${lit.glas} :`));
-        for (const row of hymns.treimice[lit.glas]) box.append(renderBlock(row));
+        { const st = {}; for (const row of hymns.treimice[lit.glas]) { const n2 = renderBlock(row, c, st); if (n2) box.append(n2); } }
         const ending = hymns.treimice.endings[lit.dow];
         if (ending) box.append(el("p", "", ending));
         break;
@@ -217,12 +235,13 @@
       case "canonTreime": {
         box.append(el("p", "slot__label", `Canonul Sfintei Treimi, glasul ${lit.glas}`));
         const d = el("details", "catisma");
+        d.dataset.kind = "treime";
         d.append(el("summary", "", "Deschide canonul"));
         d.addEventListener("toggle", async () => {
           if (d.dataset.ready) return;
           d.dataset.ready = "1";
           const data = await fetchData("canon-treime");
-          for (const b of data?.[lit.glas] ?? []) d.append(renderBlock(b));
+          { const st = {}; for (const b of data?.[lit.glas] ?? []) { const n2 = renderBlock(b, c, st); if (n2) d.append(n2); } }
         });
         box.append(d);
         break;
@@ -230,12 +249,13 @@
       case "canonMD": {
         box.append(el("p", "slot__label", `Canonul Maicii Domnului, glasul ${lit.glas}`));
         const d = el("details", "catisma");
+        d.dataset.kind = "md";
         d.append(el("summary", "", "Deschide canonul"));
         d.addEventListener("toggle", async () => {
           if (d.dataset.ready) return;
           d.dataset.ready = "1";
           const data = await fetchData(`canon-md-${lit.glas}`);
-          for (const b of data?.[c.eve] ?? []) d.append(renderBlock(b));
+          { const st = {}; for (const b of data?.[c.eve] ?? []) { const n2 = renderBlock(b, c, st); if (n2) d.append(n2); } }
         });
         box.append(d);
         break;
@@ -247,10 +267,12 @@
   }
 
   function renderItems(items, c, parent) {
+    const st = {};
     for (const item of items) {
       const show = test(item.w, c);
       if (!show && !state.full) continue;
-      const node = item.slot ? renderSlot(item, c) : renderBlock(item);
+      const node = item.slot ? renderSlot(item, c) : renderBlock(item, c, show ? st : {});
+      if (!node) continue;
       if (!show) node.classList.add("hidden-branch");
       parent.append(node);
     }
@@ -303,11 +325,10 @@
     if (c.evening) head.append(el("div", "day__rubric", "Seara: troparele și condacele sunt ale zilei de mâine."));
     if (lit.cal?.note) head.append(el("div", "day__rubric", lit.cal.note));
     parent.append(head);
-    if (time) {
-      const eyebrow = el("div", "page__eyebrow");
-      eyebrow.append(el("span", "scheduled-time", `Ora ${time}`));
-      parent.append(eyebrow);
-    }
+    const eyebrow = el("div", "page__eyebrow");
+    if (time) eyebrow.append(el("span", "scheduled-time", `Ora ${time}`));
+    eyebrow.append(el("span", "reading-time"));
+    parent.append(eyebrow);
     parent.append(el("h1", "page__title", title));
     parent.append(crossLink("page__rule"));
   }
@@ -322,7 +343,7 @@
   // Arrows to the service before and after this one. Services outside the day's
   // schedule take the place in it where they are read.
   function serviceNav(iso, slug, base, data, where) {
-    const extraTime = { obednita: base.Lw ? "15:01" : "12:01", priveghere: "18:01", pasti: "00:00" };
+    const extraTime = { obednita: base.Lw ? "15:01" : "12:01", priveghere: VIGIL_TIME, pasti: "00:00" };
     const time = SCHEDULE.find((s) => s.slug === slug)?.time ?? extraTime[slug];
     const { prev, next } = L.adjacentSlots(slotsFor(iso, data), time);
     const nav = el("nav", `service-nav service-nav--${where}`);
@@ -342,6 +363,36 @@
     };
     nav.append(link(prev, "←", "service-nav__prev", "Slujba precedentă", "prev"), link(next, "→", "service-nav__next", "Slujba următoare", "next"));
     return nav;
+  }
+
+  // About how long the service takes, read aloud at an even pace: the words on
+  // the page, with the closed catismas and canons counted as well.
+  const WORDS_PER_MINUTE = 120;
+  const wordsIn = (text) => (text.match(/[\p{L}\d]+(?:[-‑'][\p{L}\d]+)*/gu) ?? []).length;
+  const blockWords = (blocks) => (blocks ?? []).reduce((n, b) => n + wordsIn(b.r.map((r) => r[0]).join("")), 0);
+  async function readingTime(body, c, out, shown) {
+    if (!out) return;
+    let words = 0;
+    const walk = (node) => {
+      for (const child of node.children) {
+        if (child.classList.contains("hidden-branch") || child.tagName === "DETAILS") continue;
+        if (child.children.length && !/^(P|H2|H3)$/.test(child.tagName)) walk(child);
+        else words += wordsIn(child.textContent);
+      }
+    };
+    walk(body);
+    for (const d of body.querySelectorAll("details.catisma")) {
+      if (d.closest(".hidden-branch")) continue;
+      const kind = d.dataset.kind;
+      if (kind === "catisma") words += blockWords((await fetchData("psaltire"))?.[d.dataset.n]);
+      else if (kind === "treime") words += blockWords((await fetchData("canon-treime"))?.[c.lit.glas]);
+      else if (kind === "md") words += blockWords((await fetchData(`canon-md-${c.lit.glas}`))?.[c.eve]);
+      else words += wordsIn(d.textContent);
+    }
+    if (state.shown !== shown) return;
+    const exact = words / WORDS_PER_MINUTE;
+    const min = exact < 15 ? Math.max(1, Math.round(exact)) : Math.round(exact / 5) * 5;
+    out.textContent = `aprox. ${min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`} de citire`;
   }
 
   async function show(iso, slug, { keepScroll } = {}) {
@@ -369,21 +420,37 @@
     if (/mijloceasul/.test(slug) && !L.resolveSlug(slug, base)) page.append(el("p", "note", "Mijloceasurile se citesc în zilele de post. Azi nu sunt rânduite."));
 
     const body = el("div", "page__body");
-    renderItems(data.services[resolved] ?? [], c, body);
+    const atVigil = L.readAtVigil(slug, base) && state.force !== state.shown;
+    if (atVigil) {
+      // Read last night: Privegherea holds Utrenia and the First Hour.
+      const box = el("div", "vigil-note");
+      box.append(el("p", "", slug === "01-miezonoptica"
+        ? "În noaptea aceasta Miezonoptica nu se citește: s-a citit Privegherea."
+        : `${titleOf(slug)} s-a citit aseară la Priveghere, care cuprinde Vecernia Mare, Utrenia și Ceasul Întâi.`));
+      const open = el("button", "linkbtn", "Deschide Privegherea de aseară");
+      open.addEventListener("click", () => go(L.addDays(iso, -1), "priveghere"));
+      const anyway = el("button", "linkbtn", `Citește totuși ${titleOf(slug)}`);
+      anyway.addEventListener("click", () => { state.force = state.shown; show(iso, slug); });
+      box.append(open, anyway);
+      body.append(box);
+    } else {
+      renderItems(data.services[resolved] ?? [], c, body);
+    }
     // Obednița follows the Sixth Hour, or the Ninth on "Aliluia" days and in Lent.
     const obednitaAfter = base.Lw ? "09-ceasul-9" : "07-ceasul-6";
     if (slug === obednitaAfter && !base.bright) {
       body.append(el("h2", "align-center", "Obednița"));
       renderItems(data.services.obednita, c, body);
     }
-    if (slug === "11-vecernia" && (c.eve === 6 || c.lit.polieleu)) {
+    if (slug === "11-vecernia" && L.vigilEvening(iso, data)) {
       const more = el("div", "service-next");
-      const btn = el("button", "linkbtn", "Rânduiala Privegherii");
+      const btn = el("button", "linkbtn", `Privegherea, la ${VIGIL_TIME}, după Pavecerniță`);
       btn.addEventListener("click", () => go(iso, "priveghere"));
       more.append(btn);
       body.append(more);
     }
     page.append(body);
+    if (!atVigil) readingTime(body, c, page.querySelector(".reading-time"), state.shown);
     page.append(serviceNav(iso, slug, base, data, "bottom"));
     page.append(crossLink("page__footer-mark"));
     document.title = `Ceaslovnicul · ${titleOf(slug)}`;
@@ -413,7 +480,7 @@
     const q = new URLSearchParams();
     if (state.manual) { q.set("d", state.iso); q.set("s", state.slug); }
     if (state.full) q.set("full", "1");
-    if (STYLE === "vechi") q.set("stil", "vechi");
+    if (OLD) q.set("stil", STYLE);
     const text = q.toString();
     history.replaceState(null, "", text ? `?${text}` : location.pathname);
   }

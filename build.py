@@ -12,6 +12,7 @@ import json
 from collections import Counter
 import re
 import sys
+import unicodedata
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -1301,16 +1302,261 @@ def place_after_canon(services):
     return services
 
 
+
+# Words that never stand without their diacritics, wherever the sources dropped
+# them. Matched on whole words of the paragraph's joined text, so a red initial
+# ("D" + "in") is not mistaken for a word.
+DIACRITICS = [(re.compile(r"(?<![\w-])" + a + r"(?![\w-])"), b) for a, b in [
+    ("si", "și"), ("Si", "Și"), ("SI", "ȘI"),
+    ("Sfintii", "Sfinții"), ("Sfintilor", "Sfinților"), ("Sfintit", "Sfințit"), ("Sfințiti", "Sfințiți"),
+    ("Sfantul", "Sfântul"), ("Marturisitorul", "Mărturisitorul"), ("Mart\\.", "Mărt."), ("Parinți", "Părinți"),
+    ("Parintele", "Părintele"), ("Născatoare", "Născătoare"), ("Mucenite", "Mucenițe"), ("Botezatorul", "Botezătorul"),
+    ("moastelor", "moaștelor"), ("fãrã", "fără"), ("fară", "fără"), ("Stefan", "Ștefan"), ("Înalțării", "Înălțării"),
+    ("împreuna", "împreună"), ("Diocletian", "Dioclețian"), ("Scararul", "Scărarul"), ("împarateasa", "împărăteasa"),
+    ("stati", "stați"), ("cerestilor", "cereștilor"),
+]]
+
+
+def fix_diacritics(node):
+    if isinstance(node, list):
+        return [fix_diacritics(v) for v in node]
+    if isinstance(node, str):
+        for pattern, repl in DIACRITICS:
+            node = pattern.sub(repl, node)
+        return node
+    if not isinstance(node, dict):
+        return node
+    out = {k: fix_diacritics(v) for k, v in node.items() if k != "r"}
+    if "r" in node:
+        runs = [list(r) for r in node["r"]]
+        for pattern, repl in DIACRITICS:
+            runs = sub_across_runs(runs, pattern, repl)
+        out["r"] = runs
+    return {k: out[k] for k in node}
+
+
 def write(name, data):
-    data = strip_refs(data)
+    data = fix_diacritics(strip_refs(data))
     OUT.mkdir(parents=True, exist_ok=True)
     path = OUT / f"{name}.json"
     path.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"{path.relative_to(ROOT)}: {path.stat().st_size // 1024} KB")
 
 
+
+# ── Psalms, verse by verse ────────────────────────────────────────────────
+# The Psalter numbers every verse; a psalm said inside a service gets the same
+# numbers, one verse to a line, and its title where the service left it out.
+PSALM_TITLE = re.compile(r"^\s*Psalmul\s+(\d+)\s*:?\s*$")
+
+
+def psalm_verses(psalter):
+    ps, cur = {}, None
+    for blocks in psalter.values():
+        for b in blocks:
+            t = "".join(r[0] for r in b["r"]).strip()
+            m = re.match(r"PSALMUL\s+(\d+)", t)
+            if m:
+                cur = int(m.group(1))
+                ps[cur] = []
+                continue
+            m = re.match(r"(\d+)\.\s*", t)
+            if m and cur:
+                ps[cur].append((int(m.group(1)), t[m.end():]))
+    return ps
+
+
+def norm_map(text):
+    out, idx = [], []
+    for i, ch in enumerate(text):
+        base = unicodedata.normalize("NFD", ch.lower())[0]
+        if "a" <= base <= "z":
+            out.append(base)
+            idx.append(i)
+    return "".join(out), idx
+
+
+def split_runs(runs, cuts):
+    """Splits the runs at character positions of their joined text."""
+    parts, cur, pos, cuts = [], [], 0, sorted(cuts)
+    for text, flags, *rest in runs:
+        start = pos
+        pos += len(text)
+        while cuts and cuts[0] < pos:
+            k = cuts.pop(0) - start
+            if text[:k]:
+                cur.append([text[:k], flags])
+            parts.append(cur)
+            cur, text, start = [], text[k:], start + k
+        if text:
+            cur.append([text, flags])
+    parts.append(cur)
+    return parts
+
+
+def verse_walk(n, verses, vi, text, idx):
+    """Where each verse from `vi` on begins in the normalized text `n`, by aligning
+    it with the Psalter's wording (the services' wording differs here and there)."""
+    from difflib import SequenceMatcher
+    keys, offs, q = [], [], 0
+    for _, v in verses[vi:]:
+        k = norm_map(v)[0]
+        offs.append(q)
+        keys.append(k)
+        q += len(k)
+        if q > len(n) * 1.4 + 200:
+            break
+    Q = "".join(keys)
+    sm = SequenceMatcher(None, n, Q, autojunk=False)
+    blocks = [m for m in sm.get_matching_blocks() if m.size >= 4]
+    if not blocks:
+        return [(0, 0)], None, 0
+    matched = sum(m.size for m in blocks)
+    q_end = blocks[-1].b + blocks[-1].size
+    p_end = blocks[-1].a + blocks[-1].size
+    span = p_end - blocks[0].a
+    if blocks[0].a > 10 or blocks[0].b > 10 or matched < 0.75 * max(span, 1):
+        return [(0, 0)], None, 0
+
+    def where(qk):
+        for m in blocks:
+            if m.b <= qk < m.b + m.size:
+                return m.a + qk - m.b
+            if m.b > qk:
+                return max(0, m.a - (m.b - qk))
+        return None
+
+    def snap(p):
+        # The verse begins at a word, best one after a punctuation mark.
+        o = idx[min(p, len(idx) - 1)]
+        best = None
+        for d in range(0, 14):
+            for c in (o - d, o + d):
+                if 0 < c < len(text) and text[c - 1] == " " and not text[c].isspace():
+                    before = text[:c].rstrip()
+                    score = 0 if before and before[-1] in ".;:!?," else 1
+                    if best is None or (score, d) < best[:2]:
+                        best = (score, d, c)
+        return best[2] if best else o
+
+    starts = [(0, 0)]
+    for k in range(1, len(keys)):
+        if offs[k] >= q_end - 6:
+            break
+        p = where(offs[k])
+        if p is None or p >= len(n) - 6:
+            break
+        c = snap(p)
+        if c - starts[-1][0] < 12 or len(text) - c < 12:
+            continue
+        starts.append((c, k))
+    covered = starts[-1][1] + 1
+    end = None
+    if len(n) - p_end > 12 and q_end >= offs[covered - 1] + len(keys[covered - 1]) - 6:
+        end = idx[p_end - 1] + 1
+        while end < len(text) and text[end] in ".;:!?, ":
+            end += 1
+    return starts, end, matched
+
+
+def number_psalms(services, psalter):
+    ps = psalm_verses(psalter)
+    index = {}
+    for num, verses in ps.items():
+        for vi, (_, v) in enumerate(verses):
+            index.setdefault(norm_map(v)[0][:24], []).append((num, vi))
+    out = {}
+    for slug, items in services.items():
+        if not isinstance(items, list):
+            out[slug] = items
+            continue
+        new, last = [], None  # last: (psalm, verse number) said just before
+        for x in items:
+            runs = x.get("r")
+            if not runs or x.get("t") == "h":
+                new.append(x)
+                continue
+            text = "".join(r[0] for r in runs)
+            title = PSALM_TITLE.match(text)
+            if title:
+                new.append({**x, "pt": 1})
+                last = (int(title.group(1)), 0)
+                continue
+            n, idx = norm_map(text)
+            cands = list(index.get(n[:24], []))
+            if last:
+                cands = sorted(cands, key=lambda c: c[0] != last[0])
+                # The verse after the last one said, where the wording differs.
+                nxt = next((k for k, (vn, _) in enumerate(ps.get(last[0], [])) if vn == last[1] + 1), None)
+                if nxt is not None and (last[0], nxt) not in cands:
+                    cands.append((last[0], nxt))
+            hit, best = None, 0
+            for num, vi in cands:
+                if len(n) < 20:
+                    break
+                starts, end, matched = verse_walk(n, ps[num], vi, text, idx)
+                follows = last and last[0] == num and ps[num][vi][0] in (last[1] + 1, 1)
+                score = matched / len(n)
+                if score >= (0.7 if follows else 0.85) and (len(starts) >= 2 or follows) and score > best:
+                    hit, best = (num, vi, starts, end), score
+            if not hit:
+                new.append(x)
+                if re.search(r"\w{3}", "".join(r[0] for r in runs if "r" not in r[1])):
+                    last = None
+                continue
+            num, vi, starts, end = hit
+            verses = ps[num]
+            if verses[vi][0] == 1 and not (new and new[-1].get("pt")):
+                new.append({"t": "p", "c": 1, "pt": 1, "r": [[f"Psalmul {num}", "r"]], **({"w": x["w"]} if "w" in x else {})})
+            cuts = [c for c, _ in starts[1:]] + ([end] if end is not None else [])
+            parts = split_runs(runs, cuts)
+            base = {k: v for k, v in x.items() if k not in ("r", "c")}
+            carry = []
+            for j, part in enumerate(parts):
+                part = carry + part
+                carry = []
+                if not re.search(r"\w{3}", "".join(r[0] for r in part)):
+                    carry = part
+                    continue
+                if j < len(starts):
+                    new.append({**base, "r": part, "v": verses[vi + starts[j][1]][0]})
+                else:
+                    new.append({**base, "r": part})
+            last = (num, verses[vi + starts[-1][1]][0])
+        out[slug] = new
+    return out
+
+
+def number_psalter(psalter):
+    """The Psalter's own "12. " prefixes become the same verse numbers."""
+    out = {}
+    for k, blocks in psalter.items():
+        nb = []
+        for b in blocks:
+            t = "".join(r[0] for r in b["r"])
+            m = re.match(r"\s*(\d+)\.\s*", t)
+            if m and b["r"]:
+                runs = [list(r) for r in b["r"]]
+                cut = m.end()
+                while cut and runs:
+                    if len(runs[0][0]) <= cut:
+                        cut -= len(runs[0][0])
+                        runs.pop(0)
+                    else:
+                        runs[0][0] = runs[0][0][cut:]
+                        cut = 0
+                nb.append({**b, "r": runs, "v": int(m.group(1))})
+            elif re.match(r"\s*PSALMUL\s+\d+", t):
+                nb.append({**b, "pt": 1})
+            else:
+                nb.append(b)
+        out[k] = nb
+    return out
+
+
 def main():
-    write("services", place_after_canon(strip_refs(build_services())))
+    psalter = build_psalter()
+    write("services", number_psalms(place_after_canon(strip_refs(build_services())), psalter))
     write("hymns", build_hymns())
     write("sinaxar", build_sinaxar())
     for year, days in build_old_style().items():
@@ -1323,7 +1569,7 @@ def main():
     write("canon-treime", treime)
     for glas, rec in canon.items():
         write(f"canon-md-{glas}", rec)
-    write("psaltire", build_psalter())
+    write("psaltire", number_psalter(psalter))
     # Review file: every text found automatically, and what stayed short.
     lines = [f"{origin or 'NEGĂSIT':24} | {phrase} => {(full or '')[:90]}" for phrase, (full, origin) in sorted(AUDIT.items(), key=lambda kv: (bool(kv[1][0]), kv[0]))]
     (ROOT / "source" / "expansions.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")

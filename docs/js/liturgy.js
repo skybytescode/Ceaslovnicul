@@ -74,9 +74,29 @@
 
   // A day's entry where the source's calendar cannot give it: on the old calendar,
   // whose saints fall 13 days later, and in years beyond the source's calendar.
+  // On the old style the saints come from another calendar than the signs: a
+  // cross from the Romanian calendar holds only when its saint is among the day's.
+  const plainWord = (w) => w.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  const NOT_A_NAME = new Set(["sfantul", "sfanta", "sfintii", "sfintele", "cuvios", "cuvioasa", "cuviosul", "ierarh", "ierarhul", "mare", "marele", "mucenic", "mucenita", "mucenici", "apostol", "apostolul", "parintele", "nostru", "ocrotitorul", "episcopul", "arhiepiscopul", "sfintit", "sfintitul", "marturisitor", "marturisitorul", "dreptul", "proorocul", "noastre", "noastra", "adormirea", "cinstirea", "aducerea", "aflarea", "sfintei", "sfintelor"]);
+  function rankHolds(title, saints) {
+    const parts = title.split(";");
+    // "A treia zi de Crăciun; Sf. Ap. Întâiul Mc. și Arhidiacon Ștefan": the saint is the second part.
+    const main = /\bzi\b|Odovania|Duminica/i.test(parts[0]) && parts[1] ? parts[1] : parts[0];
+    const words = [...new Set((main.match(/\p{Lu}[\p{L}-]{3,}/gu) ?? []).map(plainWord))].filter((w) => !NOT_A_NAME.has(w));
+    if (!words.length) return true;
+    // Names are spelt differently between the calendars (Iacob, Iacov): the first letters suffice.
+    const stems = words.map((w) => w.slice(0, 4));
+    const need = Math.min(2, stems.length);
+    return saints.some((s) => {
+      const have = new Set((plainWord(s).match(/\p{L}{4,}/gu) ?? []).map((w) => w.slice(0, 4)));
+      return stems.filter((w) => have.has(w)).length >= need;
+    });
+  }
+
   function computedDay(d, day, civil, old, vechi) {
     const great = MOVABLE_FEASTS[d];
     const saints = vechi?.saints.length ? vechi.saints : null;
+    if (saints && day && /^†/.test(day.rank ?? "") && !rankHolds(day.title, saints)) day = { ...day, rank: "" };
     const named = saints ? saints.slice(0, HEADER_SAINTS).join(" ") : day?.title;
     return {
       title: great ?? [HOLY_WEEK[d], named].filter(Boolean).join("; "),
@@ -152,6 +172,14 @@
     if (/mijloceasul/.test(slug) && !c.post) return null;
     return slug;
   }
+
+  // The vigil (Vecernia Mare with Utrenia and the First Hour) on Saturday evening
+  // and on the eve of feasts with a cross: it is read after Pavecernița, and the
+  // next morning's Miezonoptica, Utrenia and First Hour are not read again.
+  const AFTER_VIGIL = new Set(["01-miezonoptica", "02-utrenia", "03-ceasul-1"]);
+  const vigilDay = (c) => !c.bright && (c.sun || c.polieleu);
+  const vigilEvening = (iso, data) => vigilDay(serviceContext(iso, "11-vecernia", data).lit);
+  const readAtVigil = (slug, c) => AFTER_VIGIL.has(slug) && vigilDay(c);
 
   // The services before and after a time of day. `slots` are the day's services in
   // order; past either end, the neighbour is the first or last of the next or previous day.
@@ -296,9 +324,87 @@
     return v == null ? [] : Array.isArray(v) ? v : [v];
   }
 
+
+  // ── Program de rugăciune ─────────────────────────────────────────────────
+  // Every word that is said stays, the priest's too; the red rubrics about who
+  // reads and what is done go, and the bows are told for the day.
+  const COUNT = /^\s*\(?\s*(?:de\s+(?:\d+|două|doua|trei|patru|cinci|șase|șapte|opt|nouă|zece|douăsprezece)\s+(?:de\s+)?ori|o\s+dată)\s*\)?\s*[.,;]?\s*$/i;
+  const BOWS = /metani|închinăciun/;
+  const ACTOR = /Preot|preot|Diacon|diacon|Stran|strana|Cântăreț|cântăreț|Citeț|citeț|altar|ușil|ușa|dver|epitrahil|cădelni|cădi|catapeteasm|frații|egumen|mirean|[Mm]onahul|ecfonis|Ecfonis|ectenia|Ectenia|otpust|Otpust|mănăstir|parohi|soborul|\bcel mai mare\b/;
+  const COND = /\b(?:[Dd]acă|[Ii]ar\b|[Aa]poi|[Tt]rebuie|cuvine|ÎNSEMNĂRI|[Ss]e\s+(?:cântă|zice|citește|citesc|face|cuvine|lasă|pune)|citim|zicem|punem|cântăm|facem)/;
+  const TITLE = /^\s*(?:Stih(?:\s+\d+)?|Psalmul|Crezul|Troparul|Tropar|Condacul|Condac|Rugăciunea|Rugăciune|Cântarea|Canonul|Glasul|Irmos|[Aa]l?\s+Născătoarei|Slavă|Și acum|Catisma|Sedealna|Tatăl nostru|Imnul|Doxologia|Fericirile|Simbolul)\b/;
+
+  function bowsOf(text, c) {
+    const lent = c.lentPeriod;
+    const fast = c.post;
+    const rules = [
+      [/cu\s+închinăciuni\s+și\s+în\s+Postul\s+Mare,\s*cu\s+metanii\.?/, () => (lent ? "(cu metanii)" : "(cu închinăciuni)")],
+      [/\(?Se\s+fac\s+trei\s+închinăciuni,\s*iar\s+dacă\s+este\s+post,\s*se\s+fac\s+trei\s+metanii\)?\.?/, () => (fast ? "(Trei metanii)" : "(Trei închinăciuni)")],
+      [/În\s+post\s+aici\s+faci\s+3\s+metanii;\s*iar\s+de\s+nu\s+este\s+post\s+3\s+închinăciuni\.?/, () => (fast ? "(Trei metanii)" : "(Trei închinăciuni)")],
+      [/făcând\s+câte\s+o\s+închinăciune\s+după\s+fiecare\s+cântare,\s*iar\s+de\s+este\s+în\s+post\s+facem\s+o\s+metanie\s+la\s+pământ\.?/, () => (fast ? "(După fiecare cântare, o metanie la pământ)" : "(După fiecare cântare, o închinăciune)")],
+    ];
+    for (const [re, f] of rules) if (re.test(text)) return text.replace(re, f()).trim();
+    return null;
+  }
+
+  function keepRubric(text, c) {
+    const t = text.trim();
+    if (!t) return text;
+    const bows = bowsOf(t, c);
+    if (bows) return ` ${bows} `;
+    if (t.length <= 2 && /\p{L}/u.test(t)) return text; // the red initial letter
+    if (COUNT.test(t)) return text;
+    if (/^\(?\s*O\s+(?:metanie|închinăciune)\s*\)?\.?$/.test(t)) return text;
+    if (ACTOR.test(t) || COND.test(t)) return null;
+    if (BOWS.test(t) && t.length <= 160) return text;
+    if (TITLE.test(t) && t.length <= 80) return text;
+    return null;
+  }
+
+  // Returns the runs to show, or null when nothing of the paragraph is said.
+  // `st` carries a red initial left alone at the end of a paragraph to the next.
+  function prayerRuns(runs, c, st = {}) {
+    const list = runs.map((r) => [...r]);
+    if (st.cap) {
+      const i = list.findIndex(([t, f]) => !f.includes("r") && /\S/.test(t));
+      if (i >= 0 && /^\p{Ll}/u.test(list[i][0].trimStart())) list.splice(i, 0, [st.cap, "r"]);
+      st.cap = null;
+    }
+    const out = [];
+    for (const [text, flags] of list) {
+      if (!flags.includes("r")) {
+        // Speakers named in black, the same as in red.
+        const t = text.replace(/(?:Iar\s+în\s+lipsa\s+Preotului[^:]*|\b(?:Strana(?:\s+a\s+doua)?|Preotul(?:,\s*ecfonisul)?|Diaconul|Cântărețul|Citețul|Ecfonisul|Ecfonis))\s*:\s*/g, "");
+        if (/\S/.test(t)) out.push([t, flags]);
+        continue;
+      }
+      const kept = keepRubric(text, c);
+      if (kept != null && /\S/.test(kept)) out.push([kept, TITLE.test(kept) && kept.trim().length > 2 ? `${flags}t` : flags]);
+      else if (out.length && !/\s$/.test(out[out.length - 1][0])) out.push([" ", ""]);
+    }
+    // Brackets whose opening was in a rubric that went.
+    let depth = 0;
+    for (const run of out) {
+      let t = "";
+      for (const ch of run[0]) {
+        if (ch === "(") depth++;
+        if (ch === ")") { if (depth === 0) continue; depth--; }
+        t += ch;
+      }
+      run[0] = t;
+    }
+    for (let i = out.length - 1; i >= 0; i--) if (!/[\p{L}\d]/u.test(out[i][0])) out.splice(i, 1, ...(i > 0 && i < out.length - 1 ? [[" ", ""]] : []));
+    if (!out.some(([t]) => /\p{L}{3}/u.test(t))) {
+      const last = out[out.length - 1];
+      if (last && last[1].includes("r") && /^\s*\p{Lu}\s*$/u.test(last[0])) st.cap = last[0].trim();
+      return null;
+    }
+    return out;
+  }
+
   const api = {
     pascha, addDays, diffDays, glasOf, voscrOf, dayContext, serviceContext, resolveSlug, adjacentSlots,
-    tropare, condac, bogorodicina, catisme, moveableEntry, HEADER_SAINTS,
+    tropare, condac, bogorodicina, catisme, moveableEntry, HEADER_SAINTS, prayerRuns, vigilEvening, readAtVigil,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.Liturgy = api;

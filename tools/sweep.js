@@ -8,6 +8,8 @@ for (const d of dates) for (const s of slugs) {
   const r = spawnSync("google-chrome", ["--headless=new","--disable-gpu","--no-sandbox","--enable-logging=stderr","--virtual-time-budget=2500","--dump-dom",`http://localhost:8010/?d=${d}&s=${s}`],{encoding:"utf8",maxBuffer:1<<28});
   const err = (r.stderr.match(/Uncaught[^"]*/g)||[]);
   const len = (r.stdout.match(/page__body[\s\S]*<\/article>/)||[""])[0].replace(/<[^>]+>/g,"").length;
-  if (err.length || len < 300) { bad++; console.log("BAD", d, s, len, err[0]||""); }
+  // The morning after a vigil shows only a note that the service was read at the vigil.
+  const vigilNote = r.stdout.includes("vigil-note");
+  if (err.length || (len < 300 && !vigilNote)) { bad++; console.log("BAD", d, s, len, err[0]||""); }
 }
 console.log(`${n} pages, ${bad} bad`);

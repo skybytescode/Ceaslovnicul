@@ -226,5 +226,33 @@ check("First service goes back to yesterday", adj("00:00"), ["c", -1, "b", 0]);
 check("Last service goes on to tomorrow", adj("21:00"), ["b", 0, "a", 1]);
 check("A service outside the schedule sits between", adj("12:01"), ["b", 0, "c", 0]);
 
+// Program de rugăciune: only the words said, the bows of the day.
+const said = (runs, c) => (L.prayerRuns(runs, c, {}) ?? []).map((r) => r[0]).join("").replace(/\s+/g, " ").trim();
+check("Priest's rubric goes, his words stay", said([[" Preotul cu epitrahilul pe grumaz, din fața ușilor împărătești, dă binecuvântarea, zicând : ", "r"], ["Binecuvântat este Dumnezeul nostru.", ""], ["Strana :", "r"], ["Amin !", "b"]], {}), "Binecuvântat este Dumnezeul nostru. Amin !");
+check("Bows outside Lent", said([["Aliluia.", ""], ["cu închinăciuni și în Postul Mare, cu metanii.", "r"]], { lentPeriod: false }), "Aliluia. (cu închinăciuni)");
+check("Bows in Lent", said([["Aliluia.", ""], ["cu închinăciuni și în Postul Mare, cu metanii.", "r"]], { lentPeriod: true }), "Aliluia. (cu metanii)");
+check("Counts and red initials stay", said([["M", "r"], ["iluiește-mă", ""], [" (de trei ori)", "r"]], {}), "Miluiește-mă (de trei ori)");
+check("Lay-reader rubric goes", said([["Iar în lipsa Preotului, Diaconul, Monahul sau mireanul zice :", "r"], ["Pentru rugăciunile Sfinților Părinților noștri…", "b"]], {}), "Pentru rugăciunile Sfinților Părinților noștri…");
+check("A paragraph of rubrics only is left out", L.prayerRuns([["Iar dacă nu este Postul Mare se zice :", "r"]], {}, {}), null);
+check("Calendar page offers the prayer programme", /stil=program/.test(fs.readFileSync(path.join(__dirname, "docs/calendar.html"), "utf8")), true);
+
+// The vigil: Saturday evening and the eve of feasts with a cross.
+{
+  const data = { calendar: {}, next: {} };
+  check("Vigil on Saturday evening", L.vigilEvening("2026-11-07", data), true);
+  check("No vigil on an ordinary Tuesday evening", L.vigilEvening("2026-11-10", data), false);
+  check("Sunday's Utrenia was read at the vigil", L.readAtVigil("02-utrenia", L.dayContext("2026-11-08", data)), true);
+  check("Sunday's Third Hour is still read", L.readAtVigil("05-ceasul-3", L.dayContext("2026-11-08", data)), false);
+  check("No vigil before Pascha", L.vigilEvening("2026-04-11", data), false);
+}
+
+// Old style: a Romanian cross holds only for a saint the old-style day keeps.
+{
+  const j = (f) => JSON.parse(fs.readFileSync(path.join(__dirname, "docs/data", `${f}.json`)));
+  const data = { style: "vechi", sinaxar: j("sinaxar"), calendar: j("cal-2026"), fixed: j("fixed-calendar"), vechi: j("vechi-2026") };
+  check("Old style 9 Nov (St Nestor): no cross of St Dimitrie the New", L.dayContext("2026-11-09", data).rank, "");
+  check("Old style 8 Nov (St Dimitrie) keeps its cross", /^†/.test(L.dayContext("2026-11-08", data).rank), true);
+}
+
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
