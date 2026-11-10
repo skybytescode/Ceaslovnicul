@@ -234,7 +234,7 @@ check("Bows in Lent", said([["Aliluia.", ""], ["cu închinăciuni și în Postul
 check("Counts and red initials stay", said([["M", "r"], ["iluiește-mă", ""], [" (de trei ori)", "r"]], {}), "Miluiește-mă (de trei ori)");
 check("Lay-reader rubric goes", said([["Iar în lipsa Preotului, Diaconul, Monahul sau mireanul zice :", "r"], ["Pentru rugăciunile Sfinților Părinților noștri…", "b"]], {}), "Pentru rugăciunile Sfinților Părinților noștri…");
 check("A paragraph of rubrics only is left out", L.prayerRuns([["Iar dacă nu este Postul Mare se zice :", "r"]], {}, {}), null);
-check("Calendar page offers the prayer programme", /stil=program/.test(fs.readFileSync(path.join(__dirname, "docs/calendar.html"), "utf8")), true);
+check("Calendar page offers the prayer programme on both styles", ["stil=program\"", "stil=program-nou\""].every((q) => fs.readFileSync(path.join(__dirname, "docs/calendar.html"), "utf8").includes(q)), true);
 
 // The vigil: Saturday evening and the eve of feasts with a cross.
 {

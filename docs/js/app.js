@@ -38,15 +38,16 @@
   const STYLE = (() => {
     const asked = new URLSearchParams(location.search).get("stil");
     try {
-      if (asked === "vechi" || asked === "nou" || asked === "program") localStorage.setItem("ceaslovnicul-stil", asked);
+      if (["vechi", "nou", "program", "program-nou"].includes(asked)) localStorage.setItem("ceaslovnicul-stil", asked);
       return asked || localStorage.getItem("ceaslovnicul-stil") || "nou";
     } catch {
       return asked || "nou";
     }
   })();
-  // "Program de rugăciune": the old style, with only the words that are said.
-  const PROGRAM = STYLE === "program";
-  const OLD = STYLE === "vechi" || PROGRAM;
+  // "Program de rugăciune": only the words that are said, on the old style
+  // ("program") or on the new ("program-nou").
+  const PROGRAM = STYLE === "program" || STYLE === "program-nou";
+  const OLD = STYLE === "vechi" || STYLE === "program";
   function fetchData(name) {
     if (!cache.has(name)) {
       cache.set(name, fetch(`data/${name}.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null));
@@ -480,7 +481,7 @@
     const q = new URLSearchParams();
     if (state.manual) { q.set("d", state.iso); q.set("s", state.slug); }
     if (state.full) q.set("full", "1");
-    if (OLD) q.set("stil", STYLE);
+    if (STYLE !== "nou") q.set("stil", STYLE);
     const text = q.toString();
     history.replaceState(null, "", text ? `?${text}` : location.pathname);
   }
