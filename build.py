@@ -1527,6 +1527,58 @@ def number_psalms(services, psalter):
     return out
 
 
+
+# Hymns said once, which the source gives several times over: inside the rubric
+# about the priest, split by a rubric, and again in their place.
+SAID_ONCE = [("Lumină lină", "lumea Te slăvește")]
+
+
+def drop_duplicates(services):
+    """A psalm given whole and then verse by verse is kept once, verse by verse;
+    a hymn said once keeps its last whole copy."""
+    from difflib import SequenceMatcher
+
+    def cover(P, Q):
+        probes = [P[k:k + 25] for k in (0, len(P) // 2, max(0, len(P) - 25))]
+        if not all(pr in Q for pr in probes):
+            return 0
+        return sum(m.size for m in SequenceMatcher(None, P, Q, autojunk=False).get_matching_blocks() if m.size >= 8) / len(P)
+
+    once = [(norm_map(a)[0], norm_map(b)[0]) for a, b in SAID_ONCE]
+    out = {}
+    for slug, items in services.items():
+        if not isinstance(items, list):
+            out[slug] = items
+            continue
+        said = [norm_map("".join(r[0] for r in x["r"] if "r" not in r[1]))[0] if x.get("r") and x.get("t") != "h" else "" for x in items]
+        whole = [norm_map("".join(r[0] for r in x["r"]))[0] if x.get("r") and x.get("t") != "h" else "" for x in items]
+        dropped = set()
+        for i, x in enumerate(items):
+            P = said[i]
+            if "v" in x or len(P) < 150:
+                continue
+            w = x.get("w")
+            nums = [j for j in range(max(0, i - 60), min(len(items), i + 60)) if "v" in items[j] and items[j].get("w") in (w, None)]
+            if nums and cover(P, "".join(said[j] for j in nums)) >= 0.9:
+                dropped.add(i)
+        for start, end in once:
+            # The red initial makes the whole copy read "L" + "umină lină...".
+            copies = [i for i in range(len(items)) if start[1:] in whole[i][:len(start) + 2] and end in whole[i] and i not in dropped]
+            if len(copies) < 2 and not copies:
+                continue
+            keep = copies[-1]
+            text = whole[keep]
+            for i in range(len(items)):
+                if i == keep or i in dropped or "v" in items[i] or len(said[i]) < 40:
+                    continue
+                if items[i].get("w") == items[keep].get("w") and cover(said[i], text) >= 0.92:
+                    dropped.add(i)
+        out[slug] = [x for i, x in enumerate(items) if i not in dropped]
+        if dropped:
+            print(f"{slug}: {len(dropped)} duplicate(s) left out")
+    return out
+
+
 def number_psalter(psalter):
     """The Psalter's own "12. " prefixes become the same verse numbers."""
     out = {}
@@ -1556,7 +1608,7 @@ def number_psalter(psalter):
 
 def main():
     psalter = build_psalter()
-    write("services", number_psalms(place_after_canon(strip_refs(build_services())), psalter))
+    write("services", drop_duplicates(number_psalms(place_after_canon(strip_refs(build_services())), psalter)))
     write("hymns", build_hymns())
     write("sinaxar", build_sinaxar())
     for year, days in build_old_style().items():
