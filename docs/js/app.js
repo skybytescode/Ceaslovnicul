@@ -1,9 +1,9 @@
-// Ceaslovnicul: picks the service for the current hour in Athens and renders
+// Ceaslovnicul: picks the service for the current hour in Chișinău and renders
 // it for the current day, resolving the source's rubrics with Liturgy.
 (function () {
   "use strict";
 
-  const TZ = "Europe/Athens";
+  const TZ = "Europe/Chisinau";
   const L = globalThis.Liturgy;
   const SCHEDULE = [
     { time: "00:00", slug: "01-miezonoptica", title: "Miezonoptica" },

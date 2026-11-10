@@ -1,7 +1,7 @@
 # Ceaslovnicul
 
-Ceaslovul cel Mare ca aplicație web (PWA): deschide singur slujba ceasului după ora
-Atenei și o rânduiește pentru ziua de azi (zi a săptămânii, Post Mare, posturi,
+Ceaslovul cel Mare ca aplicație web (PWA): deschide singur slujba ceasului din
+Chișinău și o rânduiește pentru ziua de azi (zi a săptămânii, Post Mare, posturi,
 Penticostar, Triod, Săptămâna Luminată, sfinții zilei, glasul de rând).
 
 Sursa textelor: <https://sites.google.com/site/ortodox007/> (ediția din 2003).
