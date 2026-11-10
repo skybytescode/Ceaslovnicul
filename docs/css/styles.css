@@ -487,3 +487,10 @@ a.page__rule:focus-visible, a.page__footer-mark:focus-visible { outline: 2px sol
 .calendar__install ol { margin: 0.4rem 0 0.2rem; padding-left: 1.4rem; }
 .calendar__install li { margin: 0 0 0.45rem; }
 .calendar__install [data-url] { overflow-wrap: anywhere; font-weight: 600; }
+
+.calendar__about { margin: 0 0 1.2rem; }
+.calendar__about p, .calendar__about li { font-size: 0.97rem; }
+.calendar__about ul { padding-left: 1.3rem; margin: 0 0 0.8rem; }
+.calendar__about li { margin: 0 0 0.3rem; }
+.calendar__hours { list-style: none; padding-left: 0 !important; }
+.calendar__hours span { display: inline-block; min-width: 3.4em; font-weight: 600; color: var(--accent); font-variant-numeric: tabular-nums lining-nums; }
