@@ -233,6 +233,8 @@ check("Bows outside Lent", said([["Aliluia.", ""], ["cu închinăciuni și în P
 check("Bows in Lent", said([["Aliluia.", ""], ["cu închinăciuni și în Postul Mare, cu metanii.", "r"]], { lentPeriod: true }), "Aliluia. (cu metanii)");
 check("Counts and red initials stay", said([["M", "r"], ["iluiește-mă", ""], [" (de trei ori)", "r"]], {}), "Miluiește-mă (de trei ori)");
 check("Lay-reader rubric goes", said([["Iar în lipsa Preotului, Diaconul, Monahul sau mireanul zice :", "r"], ["Pentru rugăciunile Sfinților Părinților noștri…", "b"]], {}), "Pentru rugăciunile Sfinților Părinților noștri…");
+check("A colon left by a removed rubric goes", said([["Să plinim rugăciunea ! : ", ""], ["Strana :", "r"], [" ", ""], ["Doamne miluiește !", "b"]], {}), "Să plinim rugăciunea ! Doamne miluiește !");
+check("A colon inside the words stays", said([["Zis-am : Doamne", ""]], {}), "Zis-am : Doamne");
 check("A paragraph of rubrics only is left out", L.prayerRuns([["Iar dacă nu este Postul Mare se zice :", "r"]], {}, {}), null);
 check("Calendar page offers the prayer programme on both styles", ["stil=program\"", "stil=program-nou\""].every((q) => fs.readFileSync(path.join(__dirname, "docs/calendar.html"), "utf8").includes(q)), true);
 

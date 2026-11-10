@@ -382,6 +382,14 @@
       if (kept != null && /\S/.test(kept)) out.push([kept, TITLE.test(kept) && kept.trim().length > 2 ? `${flags}t` : flags]);
       else if (out.length && !/\s$/.test(out[out.length - 1][0])) out.push([" ", ""]);
     }
+    // A colon whose rubric went ("Strana :", "zicem :"): at the start, or after
+    // the end of a sentence, it introduces nothing any more.
+    let lastChar = "";
+    for (const run of out) {
+      if (!run[1].includes("r")) run[0] = run[0].replace(/(^|[.!?;:]\s*)\s*:\s*/g, (m, before, at) => (at === 0 && !/[.!?;]$/.test(lastChar) && lastChar !== "" ? m : before ? `${before.trimEnd()} ` : ""));
+      const t = run[0].trimEnd();
+      if (t) lastChar = t[t.length - 1];
+    }
     // Brackets whose opening was in a rubric that went.
     let depth = 0;
     for (const run of out) {
